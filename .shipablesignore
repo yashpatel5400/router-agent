@@ -1,0 +1,13 @@
+node_modules
+frontend/node_modules
+frontend/.next
+frontend/.env.local
+.git
+__pycache__
+*.pyc
+outputs/
+checkpoints/*.pth
+checkpoints/*.pt
+*.png
+!examples/*.png
+.DS_Store

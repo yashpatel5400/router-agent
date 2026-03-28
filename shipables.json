@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "keywords": [
+    "pde",
+    "thermal",
+    "heat-equation",
+    "poisson",
+    "optimization",
+    "simulation",
+    "cfd",
+    "sor-solver",
+    "physics"
+  ],
+  "categories": ["ai-ml"],
+  "author": {
+    "name": "Yash Patel",
+    "github": "yashpatel5400"
+  }
+}
