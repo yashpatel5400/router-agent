@@ -32,6 +32,11 @@ export type SolverSnapshot = {
     elapsed_seconds: number;
     final_residual: number;
   };
+  evaluation?: {
+    meets_target: boolean;
+    peak_temp: number;
+    target?: number;
+  };
   isRunning: boolean;
 };
 
@@ -94,11 +99,18 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     },
   }));
 
+  const prevSnapshotKeyRef = useRef("");
   useEffect(() => {
     if (!onSolverUpdate) return;
     const snapshots = extractSolverSnapshots(messages);
-    onSolverUpdate(snapshots);
-  }, [messages, onSolverUpdate]);
+    const key = snapshots
+      .map((s) => `${s.iteration}:${s.isRunning}:${s.result?.iterations ?? ""}:${s.evaluation?.meets_target ?? ""}`)
+      .join("|");
+    if (key !== prevSnapshotKeyRef.current) {
+      prevSnapshotKeyRef.current = key;
+      onSolverUpdate(snapshots);
+    }
+  });
 
   const isLoading = status === "submitted" || status === "streaming";
 
@@ -261,42 +273,70 @@ function extractSolverSnapshots(messages: UIMessage[]): SolverSnapshot[] {
   const snapshots: SolverSnapshot[] = [];
   let iteration = 0;
 
+  const allParts: { toolName: string; info: ToolPartInfo }[] = [];
   for (const msg of messages) {
     if (msg.role !== "assistant") continue;
     for (const part of msg.parts) {
       const info = extractToolInfo(part as { type: string; [key: string]: unknown });
-      if (!info || info.toolName !== "solve_thermal") continue;
-
-      iteration++;
-      const inputObj = info.input as Record<string, unknown> | undefined;
-      const outputObj =
-        info.state === "output-available" && info.output
-          ? typeof info.output === "string"
-            ? JSON.parse(info.output)
-            : info.output
-          : undefined;
-
-      const solverParams = (outputObj?.solver_params ?? {}) as Record<string, unknown>;
-
-      snapshots.push({
-        iteration,
-        timestamp: Date.now(),
-        params: {
-          grid_size: (solverParams.grid_size as number) ?? (inputObj?.grid_size as number) ?? 64,
-          omega: (solverParams.omega as number) ?? (inputObj?.omega as number) ?? 1.5,
-          tol: (solverParams.tol as number) ?? (inputObj?.tol as number) ?? 1e-6,
-          max_iters: (solverParams.max_iters as number) ?? (inputObj?.max_iters as number) ?? 10000,
-        },
-        result: outputObj
-          ? {
-              iterations: outputObj.iterations as number,
-              elapsed_seconds: outputObj.elapsed_seconds as number,
-              final_residual: outputObj.final_residual as number,
-            }
-          : undefined,
-        isRunning: info.state !== "output-available" && info.state !== "output-error",
-      });
+      if (!info) continue;
+      if (info.toolName === "solve_thermal" || info.toolName === "evaluate_design") {
+        allParts.push({ toolName: info.toolName, info });
+      }
     }
+  }
+
+  for (let i = 0; i < allParts.length; i++) {
+    const { toolName, info } = allParts[i];
+    if (toolName !== "solve_thermal") continue;
+
+    iteration++;
+    const inputObj = info.input as Record<string, unknown> | undefined;
+    const outputObj =
+      info.state === "output-available" && info.output
+        ? typeof info.output === "string"
+          ? JSON.parse(info.output)
+          : info.output
+        : undefined;
+
+    const solverParams = (outputObj?.solver_params ?? {}) as Record<string, unknown>;
+
+    let evaluation: SolverSnapshot["evaluation"];
+    const next = allParts[i + 1];
+    if (next?.toolName === "evaluate_design") {
+      const evalOutput =
+        next.info.state === "output-available" && next.info.output
+          ? typeof next.info.output === "string"
+            ? JSON.parse(next.info.output)
+            : next.info.output
+          : undefined;
+      if (evalOutput && evalOutput.max_temperature !== undefined) {
+        evaluation = {
+          meets_target: !!evalOutput.meets_target,
+          peak_temp: evalOutput.max_temperature as number,
+          target: evalOutput.target_max_temp as number | undefined,
+        };
+      }
+    }
+
+    snapshots.push({
+      iteration,
+      timestamp: Date.now(),
+      params: {
+        grid_size: (solverParams.grid_size as number) ?? (inputObj?.grid_size as number) ?? 64,
+        omega: (solverParams.omega as number) ?? (inputObj?.omega as number) ?? 1.5,
+        tol: (solverParams.tol as number) ?? (inputObj?.tol as number) ?? 1e-6,
+        max_iters: (solverParams.max_iters as number) ?? (inputObj?.max_iters as number) ?? 10000,
+      },
+      result: outputObj
+        ? {
+            iterations: outputObj.iterations as number,
+            elapsed_seconds: outputObj.elapsed_seconds as number,
+            final_residual: outputObj.final_residual as number,
+          }
+        : undefined,
+      evaluation,
+      isRunning: info.state !== "output-available" && info.state !== "output-error",
+    });
   }
 
   return snapshots;

@@ -10,6 +10,7 @@ import {
   IterationCcwIcon,
   ClockIcon,
   CheckCircle2Icon,
+  XCircleIcon,
   ChevronRightIcon,
 } from "lucide-react";
 import { FC } from "react";
@@ -86,19 +87,35 @@ const EmptyPanel: FC = () => (
 );
 
 const CurrentConfig: FC<{ snapshot: SolverSnapshot }> = ({ snapshot }) => {
-  const { params, result, isRunning } = snapshot;
+  const { params, result, evaluation, isRunning } = snapshot;
+  const passed = evaluation?.meets_target === true;
+  const failed = evaluation !== undefined && !evaluation.meets_target;
 
   return (
     <div className="p-4 border-b border-border">
       <div className="flex items-center gap-2 mb-3">
         {isRunning ? (
           <Loader2Icon className="h-3.5 w-3.5 animate-spin text-orange-500" />
+        ) : passed ? (
+          <CheckCircle2Icon className="h-3.5 w-3.5 text-green-500" />
+        ) : failed ? (
+          <XCircleIcon className="h-3.5 w-3.5 text-red-500" />
         ) : (
           <CheckCircle2Icon className="h-3.5 w-3.5 text-green-500" />
         )}
         <span className="text-[10px] font-semibold uppercase tracking-wider">
           {isRunning ? "Active Solve" : `Solve #${snapshot.iteration}`}
         </span>
+        {passed && (
+          <span className="ml-auto text-[9px] font-semibold text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">
+            Target Met
+          </span>
+        )}
+        {failed && (
+          <span className="ml-auto text-[9px] font-semibold text-red-500 bg-red-500/10 px-2 py-0.5 rounded-full">
+            Target Missed
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -176,22 +193,31 @@ const TimelineEntry: FC<{
   isLatest: boolean;
   prev?: SolverSnapshot;
 }> = ({ snapshot, isLatest, prev }) => {
-  const { params, result, isRunning } = snapshot;
+  const { params, result, evaluation, isRunning } = snapshot;
   const changes = prev ? getParamChanges(prev.params, params) : [];
+
+  const passed = evaluation?.meets_target === true;
+  const failed = evaluation !== undefined && !evaluation.meets_target;
 
   return (
     <div className="flex gap-3">
       {/* Timeline connector */}
       <div className="flex flex-col items-center w-5 shrink-0">
-        <div
-          className={`w-2.5 h-2.5 rounded-full border-2 shrink-0 ${
-            isRunning
-              ? "border-orange-500 bg-orange-500/20 animate-pulse"
-              : isLatest
+        {isRunning ? (
+          <div className="w-2.5 h-2.5 rounded-full border-2 border-orange-500 bg-orange-500/20 animate-pulse shrink-0" />
+        ) : passed ? (
+          <CheckCircle2Icon className="h-3.5 w-3.5 text-green-500 shrink-0" />
+        ) : failed ? (
+          <XCircleIcon className="h-3.5 w-3.5 text-red-500 shrink-0" />
+        ) : (
+          <div
+            className={`w-2.5 h-2.5 rounded-full border-2 shrink-0 ${
+              isLatest
                 ? "border-orange-500 bg-orange-500"
                 : "border-muted-foreground/30 bg-muted"
-          }`}
-        />
+            }`}
+          />
+        )}
         {!isLatest && (
           <div className="w-px flex-1 bg-border min-h-[16px]" />
         )}
@@ -206,10 +232,26 @@ const TimelineEntry: FC<{
           {isRunning && (
             <Loader2Icon className="h-2.5 w-2.5 animate-spin text-orange-500" />
           )}
+          {passed && (
+            <span className="text-[8px] font-semibold uppercase tracking-wider text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded-full">
+              Pass
+            </span>
+          )}
+          {failed && (
+            <span className="text-[8px] font-semibold uppercase tracking-wider text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-full">
+              Fail
+            </span>
+          )}
         </div>
         <div className="text-[10px] text-muted-foreground mt-0.5 font-mono">
           {params.grid_size}² · ω={params.omega} · tol={formatTol(params.tol)}
         </div>
+        {evaluation && (
+          <div className={`text-[10px] mt-0.5 ${passed ? "text-green-500/70" : "text-red-500/70"}`}>
+            peak={evaluation.peak_temp.toFixed(3)}
+            {evaluation.target !== undefined && ` / target=${evaluation.target}`}
+          </div>
+        )}
         {result && (
           <div className="text-[10px] text-muted-foreground/70 mt-0.5 flex items-center gap-1">
             <ClockIcon className="h-2.5 w-2.5" />
