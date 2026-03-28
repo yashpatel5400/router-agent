@@ -129,15 +129,17 @@ def main():
 
     if args.mode == "surrogate":
         try:
-            from solver.surrogate import FNOSurrogate
-            surrogate = FNOSurrogate()
+            from solver.surrogate import FNOSurrogate, get_default_checkpoint_path
+            ckpt_path = design.get("surrogate_checkpoint", get_default_checkpoint_path())
+            surrogate = FNOSurrogate(N=N, device=device)
+            surrogate.load_checkpoint(ckpt_path)
             t0 = time.time()
             u = surrogate.predict(a_field, f_field)
             elapsed = time.time() - t0
             history = [{"iter": 1, "residual_norm": 0.0, "relative_residual": 0.0}]
             print(f"Surrogate inference completed in {elapsed:.3f}s")
-        except ImportError:
-            print("Surrogate not available, falling back to classical solver", file=sys.stderr)
+        except (ImportError, FileNotFoundError) as e:
+            print(f"Surrogate not available ({e}), falling back to classical solver", file=sys.stderr)
             args.mode = "classical"
 
     if args.mode == "classical":

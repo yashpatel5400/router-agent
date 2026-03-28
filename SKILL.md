@@ -205,9 +205,22 @@ User: "I have two chips generating heat at (0.3, 0.3) and (0.7, 0.7) with intens
 4. Simulate → max temp = 0.6 (meets target with margin 0.4)
 5. Report: "Added thermal pathways reduced peak temperature from 1.8 to 0.6, well below the 1.0 target."
 
+## Surrogate Mode (Optional)
+
+If a pre-trained FNO checkpoint is available at `checkpoints/fno_poisson_2d.pth`, you can use near-instant inference instead of iterative solving:
+
+```bash
+python tools/solve_thermal.py --design design.json --output result.json --mode surrogate
+```
+
+This is ~100x faster than the classical solver and useful for rapid design iteration. Install the neural operator package first: `pip install neuraloperator`.
+
+The surrogate assumes uniform conductivity and works best for the grid size it was trained on (typically 31x31). For non-uniform conductivity or different grid sizes, use the classical solver.
+
 ## Tips
 
 - **Grid size trade-off**: 31 is fast (~0.5s), 63 is more accurate (~5s). Start with 31, verify final design at 63.
 - **Conductivity is the main lever**: when sources are fixed, increasing conductivity near hot spots is the most effective strategy.
 - **Symmetry**: if sources are symmetric, the optimal conductivity layout is usually also symmetric.
 - **Boundary proximity**: points near the boundary stay cooler because the boundary is held at u=0. Place high-intensity sources near edges if possible.
+- **Surrogate for speed**: use `--mode surrogate` for fast exploratory iterations, then verify the final design with `--mode classical`.

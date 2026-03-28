@@ -2,3 +2,6 @@ torch>=2.0
 numpy>=1.24
 matplotlib>=3.7
 scipy>=1.10
+
+# Optional: FNO surrogate for fast inference
+# neuraloperator>=0.3
