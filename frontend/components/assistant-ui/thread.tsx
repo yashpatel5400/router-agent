@@ -101,9 +101,12 @@ const Composer: FC = () => {
         rows={1}
         className="flex-1 resize-none border-none bg-transparent p-2 text-sm outline-none placeholder:text-muted-foreground"
       />
-      <ComposerPrimitive.Send className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground text-background transition-opacity hover:opacity-80 disabled:opacity-30">
+      <button
+        type="submit"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-black transition-opacity hover:opacity-80"
+      >
         <SendHorizontalIcon className="size-4" />
-      </ComposerPrimitive.Send>
+      </button>
     </ComposerPrimitive.Root>
   );
 };
@@ -150,52 +153,122 @@ const ToolFallbackComponent: FC<{
   addResult: (result: unknown) => void;
   resume: (payload: unknown) => void;
   status: { type: string };
-}> = ({ toolName, args, result }) => {
-  return <ToolCallDisplay toolName={toolName} args={args} result={result} />;
+}> = ({ toolName, args, result, status }) => {
+  return (
+    <ToolCallDisplay
+      toolName={toolName}
+      args={args}
+      result={result}
+      status={status.type}
+    />
+  );
 };
 
 const ToolCallDisplay: FC<{
   toolName: string;
   args: Record<string, unknown>;
   result?: unknown;
-}> = ({ toolName, args, result }) => {
-  const toolLabels: Record<string, string> = {
-    solve_thermal: "Solving thermal problem",
-    evaluate_design: "Evaluating design",
-    visualize: "Generating visualization",
+  status?: string;
+}> = ({ toolName, args, result, status }) => {
+  const toolLabels: Record<string, [string, string]> = {
+    solve_thermal: ["Solving thermal problem...", "Solve complete"],
+    evaluate_design: ["Evaluating design...", "Evaluation complete"],
+    visualize: ["Generating heatmap...", "Visualization ready"],
   };
 
-  const label = toolLabels[toolName] || toolName;
+  const [runningLabel, doneLabel] = toolLabels[toolName] || [
+    `Running ${toolName}...`,
+    toolName,
+  ];
   const hasResult = result !== undefined && result !== null;
-  const resultObj =
-    typeof result === "string" ? JSON.parse(result) : (result as Record<string, unknown> | undefined);
+  const isRunning = status === "running" || status === "streaming";
+  const label = hasResult ? doneLabel : runningLabel;
+
+  let resultObj: Record<string, unknown> | undefined;
+  try {
+    resultObj =
+      typeof result === "string"
+        ? JSON.parse(result)
+        : (result as Record<string, unknown> | undefined);
+  } catch {
+    resultObj = undefined;
+  }
 
   return (
     <div className="my-2 rounded-lg border border-border bg-muted/30 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/50">
         <div
-          className={`h-2 w-2 rounded-full ${hasResult ? "bg-green-500" : "bg-yellow-500 animate-pulse"}`}
+          className={`h-2 w-2 rounded-full ${
+            hasResult
+              ? resultObj?.error
+                ? "bg-red-500"
+                : "bg-green-500"
+              : "bg-yellow-500 animate-pulse"
+          }`}
         />
         <span className="text-xs font-medium">{label}</span>
+        {isRunning && !hasResult && (
+          <svg
+            className="ml-auto h-3 w-3 animate-spin text-muted-foreground"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+        )}
       </div>
+
+      {isRunning && !hasResult && (
+        <div className="px-3 py-2 text-xs text-muted-foreground">
+          {toolName === "solve_thermal" && (
+            <span>Running SOR solver on the PDE grid...</span>
+          )}
+          {toolName === "evaluate_design" && (
+            <span>Computing temperature metrics and checking constraints...</span>
+          )}
+          {toolName === "visualize" && (
+            <span>Rendering heatmap from temperature field...</span>
+          )}
+        </div>
+      )}
 
       {hasResult && resultObj && (
         <div className="p-3 space-y-2">
-          {toolName === "solve_thermal" && (
-            <SolveResult result={resultObj} />
-          )}
-          {toolName === "evaluate_design" && (
-            <EvaluateResult result={resultObj} />
-          )}
-          {toolName === "visualize" && (
-            <VisualizeResult result={resultObj} />
-          )}
-          {!["solve_thermal", "evaluate_design", "visualize"].includes(
-            toolName
-          ) && (
-            <pre className="text-xs overflow-x-auto whitespace-pre-wrap">
-              {JSON.stringify(resultObj, null, 2)}
-            </pre>
+          {resultObj.error ? (
+            <div className="text-xs text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1.5 rounded">
+              Error: {String(resultObj.error)}
+            </div>
+          ) : (
+            <>
+              {toolName === "solve_thermal" && (
+                <SolveResult result={resultObj} />
+              )}
+              {toolName === "evaluate_design" && (
+                <EvaluateResult result={resultObj} />
+              )}
+              {toolName === "visualize" && (
+                <VisualizeResult result={resultObj} />
+              )}
+              {!["solve_thermal", "evaluate_design", "visualize"].includes(
+                toolName
+              ) && (
+                <pre className="text-xs overflow-x-auto whitespace-pre-wrap">
+                  {JSON.stringify(resultObj, null, 2)}
+                </pre>
+              )}
+            </>
           )}
         </div>
       )}
@@ -204,10 +277,24 @@ const ToolCallDisplay: FC<{
 };
 
 const SolveResult: FC<{ result: Record<string, unknown> }> = ({ result }) => (
-  <div className="grid grid-cols-3 gap-2 text-xs">
-    <Stat label="Iterations" value={String(result.iterations ?? "—")} />
-    <Stat label="Time" value={`${result.elapsed_seconds ?? "—"}s`} />
-    <Stat label="Grid" value={`${result.grid_size ?? "—"}×${result.grid_size ?? "—"}`} />
+  <div className="space-y-3">
+    <div className="grid grid-cols-3 gap-2 text-xs">
+      <Stat label="Iterations" value={String(result.iterations ?? "—")} />
+      <Stat label="Time" value={`${result.elapsed_seconds ?? "—"}s`} />
+      <Stat
+        label="Grid"
+        value={`${result.grid_size ?? "—"}×${result.grid_size ?? "—"}`}
+      />
+    </div>
+    {typeof result.heatmap_url === "string" && (
+      <div className="rounded-md overflow-hidden border border-border">
+        <img
+          src={result.heatmap_url}
+          alt="Temperature heatmap"
+          className="w-full"
+        />
+      </div>
+    )}
   </div>
 );
 
@@ -246,11 +333,11 @@ const EvaluateResult: FC<{ result: Record<string, unknown> }> = ({
 const VisualizeResult: FC<{ result: Record<string, unknown> }> = ({
   result,
 }) => {
-  const path = result.heatmap_path as string | undefined;
-  if (path) {
+  const url = result.heatmap_url as string | undefined;
+  if (url) {
     return (
-      <div className="text-xs text-muted-foreground">
-        Heatmap saved to <code className="bg-muted px-1 rounded">{path}</code>
+      <div className="rounded-md overflow-hidden border border-border">
+        <img src={url} alt="Temperature heatmap" className="w-full" />
       </div>
     );
   }

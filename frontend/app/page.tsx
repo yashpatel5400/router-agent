@@ -1,4 +1,4 @@
-import { Thread } from "@/components/assistant-ui/thread";
+import { Chat } from "@/components/Chat";
 
 export default function Home() {
   return (
@@ -25,7 +25,7 @@ export default function Home() {
           Powered by 2D Poisson Solver + SOR
         </span>
       </header>
-      <Thread />
+      <Chat />
     </main>
   );
 }
