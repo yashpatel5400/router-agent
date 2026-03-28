@@ -65,7 +65,7 @@ export async function POST(req: Request) {
         description:
           "Solve a 2D steady-state heat equation for a thermal design. Returns solver stats.",
         inputSchema: z.object({
-          grid_size: z.number().default(31).describe("Grid points per axis"),
+          grid_size: z.number().default(64).describe("Grid points per axis"),
           sources: z
             .array(
               z.object({

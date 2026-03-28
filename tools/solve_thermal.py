@@ -9,7 +9,7 @@ Usage:
 
 Design spec format:
 {
-    "grid_size": 31,
+    "grid_size": 64,
     "sources": [
         {"x": 0.3, "y": 0.5, "intensity": 100.0, "radius": 0.05},
         {"x": 0.7, "y": 0.5, "intensity": 50.0, "radius": 0.08}
@@ -113,7 +113,7 @@ def main():
     with open(args.design) as f:
         design = json.load(f)
 
-    N = design.get("grid_size", 31)
+    N = design.get("grid_size", 64)
     device = "cpu"
 
     # Build fields
@@ -174,8 +174,12 @@ def main():
 
     if args.heatmap:
         from tools.visualize import save_heatmap
+        sources = design.get("sources", [])
+        cond_spec = design.get("conductivity", {})
+        cond_regions = cond_spec.get("regions", []) if cond_spec.get("type") == "regions" else None
         save_heatmap(u.detach().cpu().numpy(), coords_x, coords_y, args.heatmap,
-                     title="Temperature Distribution")
+                     title="Temperature Distribution", sources=sources,
+                     cond_regions=cond_regions)
         print(f"Heatmap saved to {args.heatmap}")
 
 

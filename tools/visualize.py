@@ -40,7 +40,7 @@ def save_heatmap(u, coords_x, coords_y, output_path, title="Temperature Distribu
     cond_regions : list of dict, optional
         Conductivity regions to overlay as circles.
     """
-    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+    fig, ax = plt.subplots(1, 1, figsize=(8, 7))
 
     extent = [coords_y[0], coords_y[-1], coords_x[0], coords_x[-1]]
     im = ax.imshow(u, origin="lower", extent=extent, cmap="hot", aspect="equal")
