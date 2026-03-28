@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PDE Thermal Design Optimizer",
   description: "Iteratively optimize thermal designs using PDE simulation",
+  icons: { icon: "/logo.png" },
 };
 
 export default function RootLayout({

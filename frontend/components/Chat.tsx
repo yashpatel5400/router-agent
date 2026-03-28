@@ -111,7 +111,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="flex flex-1 min-w-0 flex-col">
+      <div className="flex flex-1 min-w-0 min-h-0 flex-col overflow-hidden">
         {/* Fixed heatmap viewer at top — resizable */}
         {messages.length > 0 && externalSnapshots && (
           <HeatmapViewer
@@ -121,7 +121,11 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
           />
         )}
 
-        <Thread />
+        <div className="relative flex-1 min-h-0">
+          <div className="absolute inset-0">
+            <Thread />
+          </div>
+        </div>
 
         {/* Tool UI registrations (render nothing visible, just register with runtime) */}
         <SolveThermalToolUI />

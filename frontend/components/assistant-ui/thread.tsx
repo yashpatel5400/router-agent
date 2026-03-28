@@ -61,7 +61,7 @@ export const Thread: FC = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col">
       <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto scroll-smooth px-6 pt-4">
-        <div className="mx-auto w-full max-w-2xl">
+        <div className="mx-auto w-full max-w-2xl pb-4">
           <ThreadPrimitive.Empty>
             <EmptyState />
           </ThreadPrimitive.Empty>
@@ -85,21 +85,8 @@ const EmptyState: FC = () => {
 
   return (
     <div className="flex flex-col items-center gap-6 text-center max-w-xl mx-auto py-12">
-      <div className="rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 p-5 shadow-xl shadow-orange-500/20">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="40"
-          height="40"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="white"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M12 2v10" />
-          <path d="M18.4 6.6a9 9 0 1 1-12.77.04" />
-        </svg>
+      <div className="rounded-2xl shadow-xl shadow-orange-500/20 overflow-hidden">
+        <img src="/logo.png" alt="PDE Thermal" className="h-20 w-20" />
       </div>
       <div className="space-y-2">
         <h2 className="text-2xl font-bold text-foreground">

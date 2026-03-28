@@ -17,27 +17,14 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="flex h-screen flex-col">
+    <main className="flex h-screen max-h-screen flex-col overflow-hidden">
       <header className="border-b border-border px-4 py-3 flex items-center gap-3 bg-card shrink-0">
         <button
           onClick={handleReset}
-          className="rounded-lg bg-gradient-to-br from-orange-500 to-red-600 p-1.5 hover:opacity-80 transition-opacity cursor-pointer"
+          className="hover:opacity-80 transition-opacity cursor-pointer"
           title="New chat"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 2v10" />
-            <path d="M18.4 6.6a9 9 0 1 1-12.77.04" />
-          </svg>
+          <img src="/logo.png" alt="PDE Thermal" className="h-8 w-8 rounded-lg" />
         </button>
         <button
           onClick={handleReset}
@@ -47,7 +34,7 @@ export default function Home() {
           PDE Thermal Design Optimizer
         </button>
       </header>
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         <Chat ref={chatRef} onSolverUpdate={handleSolverUpdate} snapshots={snapshots} />
         <SolverPanel snapshots={snapshots} />
       </div>
