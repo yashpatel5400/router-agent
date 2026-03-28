@@ -12,7 +12,28 @@ import {
   ShieldIcon,
   FlameIcon,
 } from "lucide-react";
-import { FC, useRef, useEffect, FormEvent, useState } from "react";
+import { type FC, useRef, useEffect, FormEvent, useState, forwardRef, useImperativeHandle } from "react";
+
+export type ChatHandle = {
+  reset: () => void;
+};
+
+export type SolverSnapshot = {
+  iteration: number;
+  timestamp: number;
+  params: {
+    grid_size: number;
+    omega: number;
+    tol: number;
+    max_iters: number;
+  };
+  result?: {
+    iterations: number;
+    elapsed_seconds: number;
+    final_residual: number;
+  };
+  isRunning: boolean;
+};
 
 const EXAMPLES = [
   {
@@ -53,10 +74,31 @@ const EXAMPLES = [
   },
 ];
 
-export const Chat: FC = () => {
-  const { messages, sendMessage, status, error } = useChat();
+type ChatProps = {
+  onSolverUpdate?: (snapshots: SolverSnapshot[]) => void;
+};
+
+export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
+  { onSolverUpdate },
+  ref,
+) {
+  const { messages, sendMessage, status, error, setMessages } = useChat();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
+
+  useImperativeHandle(ref, () => ({
+    reset() {
+      setMessages([]);
+      setInput("");
+      onSolverUpdate?.([]);
+    },
+  }));
+
+  useEffect(() => {
+    if (!onSolverUpdate) return;
+    const snapshots = extractSolverSnapshots(messages);
+    onSolverUpdate(snapshots);
+  }, [messages, onSolverUpdate]);
 
   const isLoading = status === "submitted" || status === "streaming";
 
@@ -79,30 +121,32 @@ export const Chat: FC = () => {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-1 min-w-0 flex-col">
       <div
         ref={viewportRef}
-        className="flex flex-1 flex-col items-center overflow-y-auto scroll-smooth px-4 pt-8"
+        className="flex flex-1 flex-col overflow-y-auto scroll-smooth px-6 pt-8"
       >
-        {messages.length === 0 && <EmptyState onPrompt={submit} />}
+        <div className="mx-auto w-full max-w-2xl">
+          {messages.length === 0 && <EmptyState onPrompt={submit} />}
 
-        <div className="flex w-full max-w-2xl flex-col gap-4 pb-4">
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
-          ))}
-          {isLoading &&
-            messages.length > 0 &&
-            !hasAssistantContent(messages) && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
-                <Loader2Icon className="h-4 w-4 animate-spin" />
-                <span>Thinking...</span>
-              </div>
-            )}
+          <div className="flex w-full flex-col gap-4 pb-4">
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} message={msg} />
+            ))}
+            {isLoading &&
+              messages.length > 0 &&
+              !hasAssistantContent(messages) && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
+                  <Loader2Icon className="h-4 w-4 animate-spin" />
+                  <span>Thinking...</span>
+                </div>
+              )}
+          </div>
         </div>
       </div>
 
       {error && (
-        <div className="mx-auto w-full max-w-2xl px-4 pb-2">
+        <div className="mx-auto w-full max-w-2xl px-6 pb-2">
           <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-600 dark:text-red-400">
             {error.message}
           </div>
@@ -141,7 +185,7 @@ export const Chat: FC = () => {
       </form>
     </div>
   );
-};
+});
 
 function hasAssistantContent(messages: UIMessage[]): boolean {
   const last = messages[messages.length - 1];
@@ -210,6 +254,53 @@ const EmptyState: FC<{ onPrompt: (text: string) => void }> = ({
     </div>
   </div>
 );
+
+/* ---------- Solver snapshot extraction ---------- */
+
+function extractSolverSnapshots(messages: UIMessage[]): SolverSnapshot[] {
+  const snapshots: SolverSnapshot[] = [];
+  let iteration = 0;
+
+  for (const msg of messages) {
+    if (msg.role !== "assistant") continue;
+    for (const part of msg.parts) {
+      const info = extractToolInfo(part as { type: string; [key: string]: unknown });
+      if (!info || info.toolName !== "solve_thermal") continue;
+
+      iteration++;
+      const inputObj = info.input as Record<string, unknown> | undefined;
+      const outputObj =
+        info.state === "output-available" && info.output
+          ? typeof info.output === "string"
+            ? JSON.parse(info.output)
+            : info.output
+          : undefined;
+
+      const solverParams = (outputObj?.solver_params ?? {}) as Record<string, unknown>;
+
+      snapshots.push({
+        iteration,
+        timestamp: Date.now(),
+        params: {
+          grid_size: (solverParams.grid_size as number) ?? (inputObj?.grid_size as number) ?? 64,
+          omega: (solverParams.omega as number) ?? (inputObj?.omega as number) ?? 1.5,
+          tol: (solverParams.tol as number) ?? (inputObj?.tol as number) ?? 1e-6,
+          max_iters: (solverParams.max_iters as number) ?? (inputObj?.max_iters as number) ?? 10000,
+        },
+        result: outputObj
+          ? {
+              iterations: outputObj.iterations as number,
+              elapsed_seconds: outputObj.elapsed_seconds as number,
+              final_residual: outputObj.final_residual as number,
+            }
+          : undefined,
+        isRunning: info.state !== "output-available" && info.state !== "output-error",
+      });
+    }
+  }
+
+  return snapshots;
+}
 
 /* ---------- Tool info extraction ---------- */
 

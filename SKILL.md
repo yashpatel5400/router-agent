@@ -38,7 +38,7 @@ Designs are specified as JSON files with this structure:
 
 ```json
 {
-    "grid_size": 31,
+    "grid_size": 64,
     "sources": [
         {"x": 0.3, "y": 0.5, "intensity": 100.0, "radius": 0.05},
         {"x": 0.7, "y": 0.5, "intensity": 50.0, "radius": 0.08}
@@ -86,10 +86,12 @@ Higher conductivity regions spread heat more effectively, reducing hot spots.
 
 ### Solver Settings
 
-- `omega` — SOR relaxation parameter, between 0 and 2 (default 1.5)
-- `tol` — convergence tolerance (default 1e-6)
-- `max_iters` — iteration limit (default 10000)
-- `grid_size` — number of interior grid points per axis. Use 31 for fast iteration, 63 for higher fidelity.
+You actively control these parameters and should tune them as part of the optimization strategy:
+
+- `grid_size` — number of interior grid points per axis. **Start at 32** for fast exploratory solves, increase to **64** for production, and use **128** for final high-fidelity verification. Larger grids produce smoother, more accurate solutions but take longer to converge.
+- `omega` — SOR relaxation parameter, must be in **(0, 2)**. Controls convergence speed. Start at **1.5**. For larger grids (64+), try **1.7-1.85** for faster convergence. Values too close to 2 can cause divergence. The optimal omega depends on grid size and problem structure.
+- `tol` — convergence tolerance for the relative residual. Use **1e-4** for quick exploration in early iterations, **1e-6** for production solves, and **1e-8** for final verification. Tighter tolerances require more SOR iterations.
+- `max_iters` — iteration limit before the solver stops. Use **5000** for small grids, **10000** for 64x64, and **20000+** for 128x128 or tight tolerances. If the solver hits the limit, either increase it or tune omega.
 
 ## Tools
 
@@ -142,7 +144,7 @@ Ask or infer:
 Write a `design.json` file with a reasonable starting layout:
 - Place heat sources at the positions the user specifies (or make educated guesses)
 - Start with uniform conductivity
-- Use `grid_size: 31` for fast iteration
+- Use **coarse/fast solver settings** for the baseline: `grid_size: 32`, `tol: 1e-4`, `omega: 1.5`
 
 ### Step 3: Simulate
 
@@ -180,14 +182,23 @@ Based on the evaluation, modify the design. Common strategies:
 - Place high-conductivity regions between sources and the nearest boundary
 - Create "thermal highways" — corridors of high conductivity
 
-### Step 6: Iterate
+### Step 6: Refine Solver Parameters
+
+As you iterate, progressively refine solver settings:
+- **Early iterations** (exploring designs): `grid_size: 32`, `tol: 1e-4`, `omega: 1.5` — fast feedback
+- **Mid iterations** (promising design found): `grid_size: 64`, `tol: 1e-6`, `omega: 1.7` — better accuracy
+- **Final verification**: `grid_size: 128`, `tol: 1e-8`, `omega: 1.8` — high-fidelity confirmation
+
+If the solver takes too many iterations, try increasing omega (up to ~1.85). If it diverges, reduce omega.
+
+### Step 7: Iterate
 
 Write the updated design JSON, re-simulate, re-evaluate. Repeat until:
 - The target is met, OR
 - Improvement plateaus (< 1% change in max temperature between iterations), OR
 - You've done 5-8 iterations (diminishing returns)
 
-### Step 7: Report
+### Step 8: Report
 
 Summarize the optimization:
 - Initial vs. final max temperature
@@ -219,7 +230,9 @@ The surrogate assumes uniform conductivity and works best for the grid size it w
 
 ## Tips
 
-- **Grid size trade-off**: 31 is fast (~0.5s), 63 is more accurate (~5s). Start with 31, verify final design at 63.
+- **Progressive resolution**: Start at 32x32 (~0.3s), iterate at 64x64 (~1s), verify at 128x128 (~5s). This mirrors real engineering practice.
+- **Omega selection**: For a 2D Poisson problem on an NxN grid, the optimal omega is approximately `2 / (1 + sin(π/(N+1)))`. For N=32 this is ~1.73, for N=64 ~1.86. Start lower and increase if convergence is slow.
+- **Tolerance strategy**: Use loose tolerance (1e-4) to quickly discard bad designs. Only tighten to 1e-6 or 1e-8 for designs that look promising.
 - **Conductivity is the main lever**: when sources are fixed, increasing conductivity near hot spots is the most effective strategy.
 - **Symmetry**: if sources are symmetric, the optimal conductivity layout is usually also symmetric.
 - **Boundary proximity**: points near the boundary stay cooler because the boundary is held at u=0. Place high-intensity sources near edges if possible.
