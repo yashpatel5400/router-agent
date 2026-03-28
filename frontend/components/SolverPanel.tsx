@@ -12,8 +12,9 @@ import {
   CheckCircle2Icon,
   XCircleIcon,
   ChevronRightIcon,
+  TrendingDownIcon,
 } from "lucide-react";
-import { FC } from "react";
+import { FC, useMemo } from "react";
 
 export const SolverPanel: FC<{ snapshots: SolverSnapshot[] }> = ({
   snapshots,
@@ -36,39 +37,191 @@ export const SolverPanel: FC<{ snapshots: SolverSnapshot[] }> = ({
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {!hasSnapshots ? (
-          <EmptyPanel />
-        ) : (
+      {/* Pinned top: current config + convergence chart (or empty state) */}
+      <div className="shrink-0">
+        {hasSnapshots && (
           <>
-            {/* Current config */}
             <CurrentConfig
               snapshot={latest}
               prev={snapshots.length > 1 ? snapshots[snapshots.length - 2] : undefined}
             />
-
-            {/* Timeline */}
-            {snapshots.length > 0 && (
-              <div className="px-4 pb-4">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                  Parameter History
-                </div>
-                <div className="space-y-0">
-                  {snapshots.map((snap, i) => (
-                    <TimelineEntry
-                      key={i}
-                      snapshot={snap}
-                      isLatest={i === snapshots.length - 1}
-                      prev={i > 0 ? snapshots[i - 1] : undefined}
-                    />
-                  ))}
-                </div>
-              </div>
+            {snapshots.some((s) => s.evaluation) && (
+              <ConvergenceChart snapshots={snapshots} />
             )}
           </>
         )}
       </div>
+
+      {/* Scrollable area: empty state or parameter history */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {!hasSnapshots ? (
+          <EmptyPanel />
+        ) : snapshots.length > 0 ? (
+          <div className="px-4 py-3">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+              Parameter History
+            </div>
+            <div className="space-y-0">
+              {snapshots.map((snap, i) => (
+                <TimelineEntry
+                  key={i}
+                  snapshot={snap}
+                  isLatest={i === snapshots.length - 1}
+                  prev={i > 0 ? snapshots[i - 1] : undefined}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
     </aside>
+  );
+};
+
+const ConvergenceChart: FC<{ snapshots: SolverSnapshot[] }> = ({ snapshots }) => {
+  const data = useMemo(() => {
+    const points: { iteration: number; peak: number; target?: number }[] = [];
+    for (const snap of snapshots) {
+      if (snap.evaluation) {
+        points.push({
+          iteration: snap.iteration,
+          peak: snap.evaluation.peak_temp,
+          target: snap.evaluation.target,
+        });
+      }
+    }
+    return points;
+  }, [snapshots]);
+
+  if (data.length < 1) return null;
+
+  const target = data.find((d) => d.target !== undefined)?.target;
+  const peaks = data.map((d) => d.peak);
+  const allVals = target !== undefined ? [...peaks, target] : peaks;
+  const yMin = Math.min(...allVals) * 0.9;
+  const yMax = Math.max(...allVals) * 1.1;
+  const yRange = yMax - yMin || 1;
+
+  const W = 240;
+  const H = 80;
+  const padL = 36;
+  const padR = 8;
+  const padT = 6;
+  const padB = 16;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const xStep = data.length > 1 ? plotW / (data.length - 1) : plotW / 2;
+  const pts = data.map((d, i) => ({
+    x: padL + (data.length > 1 ? i * xStep : plotW / 2),
+    y: padT + plotH - ((d.peak - yMin) / yRange) * plotH,
+    peak: d.peak,
+  }));
+
+  const linePath = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+
+  const targetY = target !== undefined
+    ? padT + plotH - ((target - yMin) / yRange) * plotH
+    : null;
+
+  const latestMet = data[data.length - 1]?.target !== undefined &&
+    data[data.length - 1].peak <= (data[data.length - 1].target ?? Infinity);
+
+  const tickCount = 3;
+  const yTicks = Array.from({ length: tickCount }, (_, i) => {
+    const frac = i / (tickCount - 1);
+    const val = yMax - frac * yRange;
+    const y = padT + frac * plotH;
+    return { val, y };
+  });
+
+  return (
+    <div className="px-4 py-3 border-b border-border">
+      <div className="flex items-center gap-2 mb-2">
+        <TrendingDownIcon className="h-3.5 w-3.5 text-orange-500" />
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Peak Temperature
+        </span>
+        {target !== undefined && (
+          <span
+            className={`ml-auto text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded-full ${
+              latestMet
+                ? "text-green-500 bg-green-500/10"
+                : "text-red-400 bg-red-500/10"
+            }`}
+          >
+            target: {target}
+          </span>
+        )}
+      </div>
+      <svg width={W} height={H} className="w-full" viewBox={`0 0 ${W} ${H}`}>
+        {/* Y-axis grid + labels */}
+        {yTicks.map((tick, i) => (
+          <g key={i}>
+            <line
+              x1={padL}
+              x2={W - padR}
+              y1={tick.y}
+              y2={tick.y}
+              stroke="rgba(255,255,255,0.06)"
+              strokeWidth={0.5}
+            />
+            <text
+              x={padL - 4}
+              y={tick.y + 3}
+              textAnchor="end"
+              fill="#71717a"
+              fontSize={8}
+              fontFamily="monospace"
+            >
+              {tick.val.toFixed(2)}
+            </text>
+          </g>
+        ))}
+
+        {/* Target line */}
+        {targetY !== null && (
+          <line
+            x1={padL}
+            x2={W - padR}
+            y1={targetY}
+            y2={targetY}
+            stroke={latestMet ? "#22c55e" : "#ef4444"}
+            strokeWidth={1}
+            strokeDasharray="4 3"
+            opacity={0.6}
+          />
+        )}
+
+        {/* Peak temp line */}
+        <path
+          d={linePath}
+          fill="none"
+          stroke="#f97316"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Data dots */}
+        {pts.map((p, i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r={3} fill="#0a0a0a" stroke="#f97316" strokeWidth={1.5} />
+            {/* X-axis label */}
+            <text
+              x={p.x}
+              y={H - 2}
+              textAnchor="middle"
+              fill="#71717a"
+              fontSize={7}
+              fontFamily="monospace"
+            >
+              #{data[i].iteration}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
   );
 };
 
@@ -178,28 +331,29 @@ const CurrentConfig: FC<{ snapshot: SolverSnapshot; prev?: SolverSnapshot }> = (
         />
       </div>
 
-      {/* Result stats */}
-      {result && !isRunning && (
-        <div className="mt-3 grid grid-cols-3 gap-1.5">
-          <MiniStat
-            label="Converged in"
-            value={`${result.iterations}`}
-            unit="iters"
-          />
-          <MiniStat
-            label="Time"
-            value={result.elapsed_seconds.toFixed(2)}
-            unit="s"
-          />
-          <MiniStat
-            label="Residual"
-            value={result.final_residual.toExponential(1)}
-          />
-        </div>
-      )}
+      {/* Result stats — always rendered to keep layout stable */}
+      <div className="mt-3 grid grid-cols-3 gap-1.5">
+        <MiniStat
+          label="Converged in"
+          value={result && !isRunning ? `${result.iterations}` : "—"}
+          unit={result && !isRunning ? "iters" : undefined}
+          dimmed={!result || isRunning}
+        />
+        <MiniStat
+          label="Time"
+          value={result && !isRunning ? result.elapsed_seconds.toFixed(2) : "—"}
+          unit={result && !isRunning ? "s" : undefined}
+          dimmed={!result || isRunning}
+        />
+        <MiniStat
+          label="Residual"
+          value={result && !isRunning ? result.final_residual.toExponential(1) : "—"}
+          dimmed={!result || isRunning}
+        />
+      </div>
 
       {isRunning && (
-        <div className="mt-3 h-1 w-full rounded-full bg-muted overflow-hidden">
+        <div className="mt-2 h-1 w-full rounded-full bg-muted overflow-hidden">
           <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-orange-500 to-red-500 animate-[pulse_1.5s_ease-in-out_infinite]" />
         </div>
       )}
@@ -340,12 +494,13 @@ const MiniStat: FC<{
   label: string;
   value: string;
   unit?: string;
-}> = ({ label, value, unit }) => (
+  dimmed?: boolean;
+}> = ({ label, value, unit, dimmed }) => (
   <div className="rounded-md bg-muted/30 px-2 py-1.5 text-center">
     <div className="text-[8px] text-muted-foreground uppercase tracking-wider">
       {label}
     </div>
-    <div className="font-mono text-[11px] font-bold text-foreground">
+    <div className={`font-mono text-[11px] font-bold ${dimmed ? "text-muted-foreground/40" : "text-foreground"}`}>
       {value}
       {unit && (
         <span className="text-[8px] text-muted-foreground ml-0.5 font-normal">

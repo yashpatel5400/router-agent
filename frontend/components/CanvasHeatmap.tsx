@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback, type FC } from "react";
+import { useRef, useEffect, useCallback, useState, type FC } from "react";
 
 /* ── Inferno colormap (256 stops sampled from matplotlib's inferno) ── */
 
@@ -96,6 +96,23 @@ interface CanvasHeatmapProps {
   conductivityRegions?: ConductivityRegion[];
 }
 
+type HoverInfo = {
+  cssX: number;
+  cssY: number;
+  temp: number;
+  domainX: number;
+  domainY: number;
+};
+
+type LayoutInfo = {
+  heatmapX: number;
+  heatmapY: number;
+  heatmapWidth: number;
+  heatmapHeight: number;
+  rows: number;
+  cols: number;
+};
+
 export const CanvasHeatmap: FC<CanvasHeatmapProps> = ({
   temperatureField,
   sources,
@@ -103,6 +120,43 @@ export const CanvasHeatmap: FC<CanvasHeatmapProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const layoutRef = useRef<LayoutInfo | null>(null);
+  const [hover, setHover] = useState<HoverInfo | null>(null);
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const layout = layoutRef.current;
+      const container = containerRef.current;
+      if (!layout || !container) return;
+
+      const rect = container.getBoundingClientRect();
+      const cssX = e.clientX - rect.left;
+      const cssY = e.clientY - rect.top;
+
+      const { heatmapX, heatmapY, heatmapWidth, heatmapHeight, rows, cols } = layout;
+      const relX = cssX - heatmapX;
+      const relY = cssY - heatmapY;
+
+      if (relX < 0 || relX >= heatmapWidth || relY < 0 || relY >= heatmapHeight) {
+        setHover(null);
+        return;
+      }
+
+      const gridC = Math.floor((relX / heatmapWidth) * cols);
+      const gridR = rows - 1 - Math.floor((relY / heatmapHeight) * rows);
+      const clampedR = Math.max(0, Math.min(rows - 1, gridR));
+      const clampedC = Math.max(0, Math.min(cols - 1, gridC));
+
+      const temp = temperatureField[clampedR]?.[clampedC] ?? 0;
+      const domainX = (clampedR + 1) / (rows + 1);
+      const domainY = (clampedC + 1) / (cols + 1);
+
+      setHover({ cssX, cssY, temp, domainX, domainY });
+    },
+    [temperatureField],
+  );
+
+  const handleMouseLeave = useCallback(() => setHover(null), []);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -254,6 +308,8 @@ export const CanvasHeatmap: FC<CanvasHeatmapProps> = ({
       ctx.strokeStyle = "#a1a1aa";
       ctx.stroke();
     }
+
+    layoutRef.current = { heatmapX, heatmapY, heatmapWidth, heatmapHeight, rows, cols };
   }, [temperatureField, sources, conductivityRegions]);
 
   useEffect(() => {
@@ -265,12 +321,69 @@ export const CanvasHeatmap: FC<CanvasHeatmapProps> = ({
     return () => ro.disconnect();
   }, [draw]);
 
+  const layout = layoutRef.current;
+
   return (
-    <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
+    <div
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{ width: "100%", height: "100%", position: "relative", cursor: hover ? "crosshair" : "default" }}
+    >
       <canvas
         ref={canvasRef}
         style={{ width: "100%", height: "100%", display: "block" }}
       />
+
+      {hover && layout && (
+        <>
+          {/* Vertical crosshair */}
+          <div
+            style={{
+              position: "absolute",
+              left: hover.cssX,
+              top: layout.heatmapY,
+              width: 1,
+              height: layout.heatmapHeight,
+              backgroundColor: "rgba(255,255,255,0.3)",
+              pointerEvents: "none",
+            }}
+          />
+          {/* Horizontal crosshair */}
+          <div
+            style={{
+              position: "absolute",
+              left: layout.heatmapX,
+              top: hover.cssY,
+              width: layout.heatmapWidth,
+              height: 1,
+              backgroundColor: "rgba(255,255,255,0.3)",
+              pointerEvents: "none",
+            }}
+          />
+          {/* Tooltip */}
+          <div
+            style={{
+              position: "absolute",
+              left: hover.cssX + 12,
+              top: hover.cssY - 40,
+              pointerEvents: "none",
+              backgroundColor: "rgba(0,0,0,0.85)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              borderRadius: 6,
+              padding: "4px 8px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#f97316", fontFamily: "monospace" }}>
+              T = {hover.temp.toFixed(4)}
+            </div>
+            <div style={{ fontSize: 10, color: "#a1a1aa", fontFamily: "monospace" }}>
+              ({hover.domainX.toFixed(3)}, {hover.domainY.toFixed(3)})
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

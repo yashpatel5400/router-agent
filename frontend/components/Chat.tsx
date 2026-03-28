@@ -59,7 +59,8 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   { onSolverUpdate, snapshots: externalSnapshots },
   ref,
 ) {
-  const chat = useChat();
+  const [chatKey, setChatKey] = useState(0);
+  const chat = useChat({ id: `chat-${chatKey}` });
   const { messages, setMessages } = chat;
   const runtime = useAISDKRuntime(chat);
   const [viewerHeight, setViewerHeight] = useState(DEFAULT_VIEWER_H);
@@ -93,6 +94,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     reset() {
       setMessages([]);
       onSolverUpdate?.([]);
+      setChatKey((k) => k + 1);
     },
   }));
 

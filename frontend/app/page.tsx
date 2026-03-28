@@ -24,7 +24,7 @@ export default function Home() {
           className="hover:opacity-80 transition-opacity cursor-pointer"
           title="New chat"
         >
-          <img src="/logo.png" alt="PDE Thermal" className="h-8 w-8 rounded-lg" />
+          <img src="/logo.png" alt="PDE Thermal" className="h-8 w-auto rounded-lg" />
         </button>
         <button
           onClick={handleReset}

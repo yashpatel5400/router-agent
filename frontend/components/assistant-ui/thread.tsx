@@ -85,9 +85,6 @@ const EmptyState: FC = () => {
 
   return (
     <div className="flex flex-col items-center gap-6 text-center max-w-xl mx-auto py-12">
-      <div className="rounded-2xl shadow-xl shadow-orange-500/20 overflow-hidden">
-        <img src="/logo.png" alt="PDE Thermal" className="h-20 w-20" />
-      </div>
       <div className="space-y-2">
         <h2 className="text-2xl font-bold text-foreground">
           Thermal Design Agent
