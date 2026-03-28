@@ -17,39 +17,39 @@ import { FC, useRef, useEffect, FormEvent, useState } from "react";
 const EXAMPLES = [
   {
     icon: CpuIcon,
-    label: "Chip cooling",
+    label: "Chip cooling challenge",
     prompt:
-      "I have two chips at (0.3, 0.3) and (0.7, 0.7) each generating heat with intensity 500 and radius 0.06. Keep peak temperature below 1.0. Suggest heat spreader placement to meet the target.",
+      "Two high-power chips at (0.4, 0.4) and (0.6, 0.6) each with intensity 2000 and radius 0.05. Target: peak temperature below 0.5. Start with uniform conductivity to see the baseline, then iterate with heat spreaders.",
   },
   {
     icon: LayersIcon,
-    label: "Heat sink design",
+    label: "Central hotspot",
     prompt:
-      "Design a heat sink for a single high-power source at the center (0.5, 0.5) with intensity 1000 and radius 0.08. Place high-conductivity fins (value 20) to bring peak temp under 1.5.",
+      "A single extremely hot source at the center (0.5, 0.5) with intensity 5000 and radius 0.06. The center is the hardest location to cool since it's farthest from the boundaries. Get peak temp under 1.0 using high-conductivity pathways.",
   },
   {
     icon: ZapIcon,
-    label: "Power electronics",
+    label: "Dense power grid",
     prompt:
-      "I have 4 power MOSFETs arranged in a 2x2 grid at (0.3,0.3), (0.3,0.7), (0.7,0.3), (0.7,0.7) each with intensity 300 and radius 0.04. Minimize the peak temperature using conductivity regions.",
+      "6 power devices in a 2x3 grid: (0.35,0.3), (0.35,0.5), (0.35,0.7), (0.65,0.3), (0.65,0.5), (0.65,0.7), each intensity 1000, radius 0.04. They're tightly packed and interact thermally. Target: peak temp below 0.6.",
   },
   {
     icon: ShieldIcon,
-    label: "Thermal barrier",
+    label: "Thermal protection",
     prompt:
-      "Place a hot source at (0.5, 0.8) with intensity 800, radius 0.07. I need to protect a sensitive region near (0.5, 0.2) — keep temperature there below 0.3. Use conductivity regions to create a thermal barrier and heat spreader.",
+      "Hot source at (0.5, 0.7) with intensity 3000, radius 0.06. A sensitive component sits at (0.5, 0.3) and must stay below 0.15 temperature. Design conductivity regions to shield the sensitive area while dissipating the heat.",
   },
   {
     icon: FlameIcon,
-    label: "Multi-source optimization",
+    label: "Asymmetric L-layout",
     prompt:
-      "I have 5 heat sources in an L-shape: (0.2,0.2), (0.2,0.5), (0.2,0.8), (0.5,0.8), (0.8,0.8), each intensity 200, radius 0.05. Optimize the layout with heat spreaders to get peak temp under 0.8.",
+      "5 sources in an L-shape: (0.3,0.3) intensity 1500, (0.3,0.5) intensity 2000, (0.3,0.7) intensity 1500, (0.5,0.7) intensity 1000, (0.7,0.7) intensity 800. All radius 0.05. Get peak temp under 0.7. The asymmetric powers make this tricky.",
   },
   {
     icon: ThermometerIcon,
-    label: "Uniform cooling",
+    label: "Uniform temperature",
     prompt:
-      "Place 3 sources at (0.25,0.5), (0.5,0.5), (0.75,0.5) with intensity 400, radius 0.06. Goal: make the temperature as uniform as possible across the domain. Minimize the difference between max and mean temperature.",
+      "3 sources at (0.25,0.5) intensity 1500, (0.5,0.5) intensity 2500, (0.75,0.5) intensity 1500, all radius 0.05. The center source is hotter. Goal: get peak temp under 0.6 AND minimize the gap between max and mean temperature.",
   },
 ];
 

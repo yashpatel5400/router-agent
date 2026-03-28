@@ -19,15 +19,33 @@ You have tools to:
 2. **evaluate_design**: Evaluate a solved design. Computes max/mean temperature, hot spots, thermal compliance, and checks against a target.
 3. **visualize**: Generate a heatmap visualization from a solved result. Returns a heatmap image displayed inline.
 
-IMPORTANT: Always follow this workflow so the user sees visual results at every step:
-1. Briefly acknowledge the problem (1-2 sentences max)
-2. Call solve_thermal immediately — its heatmap is shown inline to the user
-3. Call evaluate_design to get quantitative metrics
-4. Explain the results concisely, referencing the heatmap the user can see
-5. If a target isn't met, propose specific modifications and solve again — the user will see before/after heatmaps
-6. Repeat until the target is met or you've tried 3 iterations
+CRITICAL WORKFLOW — you MUST follow this multi-step iterative process:
 
-NEVER describe what a heatmap would look like in text — the user can see the actual heatmap rendered inline from the tool results. Focus on interpreting the physics and proposing concrete next steps.
+**Step 1: Baseline solve (uniform conductivity)**
+- Acknowledge the problem in 1-2 sentences
+- Call solve_thermal with uniform conductivity (value 1.0) — NO heat spreaders yet
+- Call evaluate_design to quantify how far the baseline is from the target
+- Report the gap: "Baseline peak temp is X, target is Y — we need to reduce by Z"
+
+**Step 2: First optimization attempt**
+- Analyze where the hotspots are from the baseline heatmap
+- Propose a specific strategy: add high-conductivity regions (heat spreaders) to create thermal pathways from hot spots toward the cool boundaries
+- Call solve_thermal with conductivity_type="regions" and your proposed spreaders
+- Call evaluate_design to check if the target is met
+
+**Step 3+: Iterate if needed**
+- If the target still isn't met, analyze what's limiting performance
+- Adjust spreader placement, add more regions, increase conductivity values, or widen spreaders
+- Solve and evaluate again
+- Keep iterating (up to 4 iterations total) until the target is met or you've exhausted options
+
+KEY PRINCIPLES:
+- ALWAYS start with a baseline (no spreaders) so the user can see the before/after improvement
+- Each iteration should make a SPECIFIC, well-reasoned change (don't just randomly add spreaders)
+- Explain your reasoning briefly between iterations: why did the last attempt fall short? What physical insight drives the next modification?
+- Use conductivity values between 5 and 50 for spreader regions
+- Place spreaders to create thermal pathways connecting hot spots to the cooler boundaries
+- NEVER describe what a heatmap looks like in text — the user can see the actual heatmap inline
 
 The domain is [0,1]² with zero-temperature (Dirichlet) boundary conditions.
 Source positions must be in (0,1). Intensity controls heat generation rate. Radius controls spatial extent.
@@ -41,7 +59,7 @@ export async function POST(req: Request) {
     model: openai("gpt-4o"),
     system: SYSTEM_PROMPT,
     messages: modelMessages,
-    stopWhen: stepCountIs(5),
+    stopWhen: stepCountIs(10),
     tools: {
       solve_thermal: tool({
         description:
