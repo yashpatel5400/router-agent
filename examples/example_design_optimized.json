@@ -5,8 +5,12 @@
         {"x": 0.7, "y": 0.7, "intensity": 500.0, "radius": 0.06}
     ],
     "conductivity": {
-        "type": "uniform",
-        "value": 1.0
+        "type": "regions",
+        "base": 1.0,
+        "regions": [
+            {"x": 0.15, "y": 0.15, "radius": 0.2, "value": 5.0},
+            {"x": 0.85, "y": 0.85, "radius": 0.2, "value": 5.0}
+        ]
     },
     "solver": {
         "omega": 1.5,
