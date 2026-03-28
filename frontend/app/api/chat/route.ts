@@ -258,10 +258,10 @@ export async function POST(req: Request) {
             };
           }
         },
-        toModelOutput({ output }) {
-          if (!output || typeof output !== "object") return output;
+        toModelOutput({ output }: { output: unknown }) {
+          if (!output || typeof output !== "object") return { type: "text" as const, value: JSON.stringify(output) };
           const { temperature_field, sources, conductivity_regions, solver_output, ...modelData } = output as Record<string, unknown>;
-          return modelData;
+          return { type: "text" as const, value: JSON.stringify(modelData) };
         },
       }),
       evaluate_design: tool({
