@@ -69,6 +69,25 @@ u(x,y) = 0                         on ∂D (boundary)
 
 Discretized via finite differences on a uniform grid. Solved iteratively with Successive Over-Relaxation (SOR) using red-black ordering for vectorized performance, or optionally via a pre-trained Fourier Neural Operator (FNO) surrogate for near-instant inference.
 
+## Interactive Chat Interface
+
+The project includes an interactive web frontend built with [assistant-ui](https://www.assistant-ui.com/) where you can chat with an AI that uses the PDE solver tools in the loop.
+
+```bash
+cd frontend
+cp .env.example .env.local   # Add your OpenAI API key
+npm install
+npm run dev                   # Opens at http://localhost:3000
+```
+
+Describe a thermal design problem in natural language and the agent will:
+1. Create a design specification
+2. Run the PDE solver
+3. Evaluate the temperature distribution
+4. Propose improvements and iterate
+
+The chat interface streams tool calls and results in real time, with custom renderers for solver stats and evaluation metrics.
+
 ## Using as an Agent Skill
 
 Copy or symlink this directory into your agent's skills folder:
