@@ -1,7 +1,7 @@
 """Quick smoke test: generate a random 2D Poisson problem, solve it, report error."""
 
 import torch
-from solver import PoissonEquation2D, SORSolver, GaussianRandomField
+from solver import PoissonEquation2D, SORSolverFast as SORSolver, GaussianRandomField
 
 
 def main():

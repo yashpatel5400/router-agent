@@ -1,0 +1,16 @@
+{
+    "grid_size": 31,
+    "sources": [
+        {"x": 0.3, "y": 0.5, "intensity": 100.0, "radius": 0.05},
+        {"x": 0.7, "y": 0.5, "intensity": 50.0, "radius": 0.08}
+    ],
+    "conductivity": {
+        "type": "uniform",
+        "value": 1.0
+    },
+    "solver": {
+        "omega": 1.5,
+        "tol": 1e-6,
+        "max_iters": 10000
+    }
+}
