@@ -152,6 +152,39 @@ const EmptyState: FC<{ onPrompt: (text: string) => void }> = ({
   </div>
 );
 
+type ToolPartInfo = {
+  toolName: string;
+  toolCallId: string;
+  state: string;
+  input?: unknown;
+  output?: unknown;
+  errorText?: string;
+};
+
+function extractToolInfo(part: { type: string; [key: string]: unknown }): ToolPartInfo | null {
+  if (part.type === "dynamic-tool") {
+    return {
+      toolName: part.toolName as string,
+      toolCallId: part.toolCallId as string,
+      state: part.state as string,
+      input: part.input,
+      output: part.output,
+      errorText: part.errorText as string | undefined,
+    };
+  }
+  if (part.type.startsWith("tool-")) {
+    return {
+      toolName: part.type.slice(5),
+      toolCallId: part.toolCallId as string,
+      state: part.state as string,
+      input: part.input,
+      output: part.output,
+      errorText: part.errorText as string | undefined,
+    };
+  }
+  return null;
+}
+
 const MessageBubble: FC<{ message: UIMessage }> = ({ message }) => {
   if (message.role === "user") {
     const text = message.parts
@@ -174,15 +207,16 @@ const MessageBubble: FC<{ message: UIMessage }> = ({ message }) => {
           if (part.type === "text") {
             return <TextPart key={i} text={part.text} />;
           }
-          if (part.type === "dynamic-tool") {
+          const toolInfo = extractToolInfo(part as { type: string; [key: string]: unknown });
+          if (toolInfo) {
             return (
               <ToolCallDisplay
                 key={i}
-                toolName={part.toolName}
-                state={part.state}
-                input={part.input}
-                output={"output" in part ? part.output : undefined}
-                errorText={"errorText" in part ? part.errorText : undefined}
+                toolName={toolInfo.toolName}
+                state={toolInfo.state}
+                input={toolInfo.input}
+                output={toolInfo.output}
+                errorText={toolInfo.errorText}
               />
             );
           }
@@ -197,7 +231,14 @@ const TextPart: FC<{ text: string }> = ({ text }) => {
   if (!text.trim()) return null;
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-      <Markdown>{text}</Markdown>
+      <Markdown
+        components={{
+          img: ({ src, alt, ...props }) =>
+            src ? <img src={src} alt={alt ?? ""} {...props} /> : null,
+        }}
+      >
+        {text}
+      </Markdown>
     </div>
   );
 };
@@ -220,8 +261,8 @@ const ToolCallDisplay: FC<{
     toolName,
   ];
 
-  const isDone = state === "result";
-  const isError = state === "error";
+  const isDone = state === "output-available";
+  const isError = state === "output-error";
   const isRunning = !isDone && !isError;
   const label = isDone ? doneLabel : isError ? `${toolName} failed` : runningLabel;
 
