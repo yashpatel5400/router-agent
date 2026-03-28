@@ -13,6 +13,7 @@ import {
   FlameIcon,
 } from "lucide-react";
 import { type FC, useRef, useEffect, FormEvent, useState, forwardRef, useImperativeHandle } from "react";
+import { HeatmapViewer } from "./HeatmapViewer";
 
 export type ChatHandle = {
   reset: () => void;
@@ -37,6 +38,7 @@ export type SolverSnapshot = {
     peak_temp: number;
     target?: number;
   };
+  heatmap_url?: string;
   isRunning: boolean;
 };
 
@@ -81,10 +83,11 @@ const EXAMPLES = [
 
 type ChatProps = {
   onSolverUpdate?: (snapshots: SolverSnapshot[]) => void;
+  snapshots?: SolverSnapshot[];
 };
 
 export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
-  { onSolverUpdate },
+  { onSolverUpdate, snapshots: externalSnapshots },
   ref,
 ) {
   const { messages, sendMessage, status, error, setMessages } = useChat();
@@ -104,7 +107,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     if (!onSolverUpdate) return;
     const snapshots = extractSolverSnapshots(messages);
     const key = snapshots
-      .map((s) => `${s.iteration}:${s.isRunning}:${s.result?.iterations ?? ""}:${s.evaluation?.meets_target ?? ""}`)
+      .map((s) => `${s.iteration}:${s.isRunning}:${s.result?.iterations ?? ""}:${s.evaluation?.meets_target ?? ""}:${s.heatmap_url ?? ""}`)
       .join("|");
     if (key !== prevSnapshotKeyRef.current) {
       prevSnapshotKeyRef.current = key;
@@ -134,9 +137,14 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
   return (
     <div className="flex flex-1 min-w-0 flex-col">
+      {/* Fixed heatmap viewer at top */}
+      {messages.length > 0 && externalSnapshots && (
+        <HeatmapViewer snapshots={externalSnapshots} />
+      )}
+
       <div
         ref={viewportRef}
-        className="flex flex-1 flex-col overflow-y-auto scroll-smooth px-6 pt-8"
+        className="flex flex-1 flex-col overflow-y-auto scroll-smooth px-6 pt-4"
       >
         <div className="mx-auto w-full max-w-2xl">
           {messages.length === 0 && <EmptyState onPrompt={submit} />}
@@ -335,6 +343,7 @@ function extractSolverSnapshots(messages: UIMessage[]): SolverSnapshot[] {
           }
         : undefined,
       evaluation,
+      heatmap_url: outputObj?.heatmap_url as string | undefined,
       isRunning: info.state !== "output-available" && info.state !== "output-error",
     });
   }
@@ -610,12 +619,8 @@ const SolveResult: FC<{ result: Record<string, unknown> }> = ({ result }) => (
       />
     </div>
     {typeof result.heatmap_url === "string" && (
-      <div className="rounded-lg overflow-hidden border border-border shadow-inner">
-        <img
-          src={result.heatmap_url}
-          alt="Temperature distribution"
-          className="w-full"
-        />
+      <div className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+        Heatmap shown in viewer above
       </div>
     )}
   </div>
@@ -681,16 +686,8 @@ const EvaluateResult: FC<{ result: Record<string, unknown> }> = ({
 const VisualizeResult: FC<{ result: Record<string, unknown> }> = ({
   result,
 }) => {
-  const url = result.heatmap_url as string | undefined;
-  if (url) {
-    return (
-      <div className="rounded-lg overflow-hidden border border-border shadow-inner">
-        <img src={url} alt="Temperature heatmap" className="w-full" />
-      </div>
-    );
-  }
   return (
-    <div className="text-xs text-muted-foreground">Visualization generated</div>
+    <div className="text-xs text-muted-foreground">Heatmap shown in viewer above</div>
   );
 };
 

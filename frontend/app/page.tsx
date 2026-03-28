@@ -51,7 +51,7 @@ export default function Home() {
         </span>
       </header>
       <div className="flex flex-1 min-h-0">
-        <Chat ref={chatRef} onSolverUpdate={handleSolverUpdate} />
+        <Chat ref={chatRef} onSolverUpdate={handleSolverUpdate} snapshots={snapshots} />
         <SolverPanel snapshots={snapshots} />
       </div>
     </main>
