@@ -42,7 +42,10 @@ export const SolverPanel: FC<{ snapshots: SolverSnapshot[] }> = ({
         ) : (
           <>
             {/* Current config */}
-            <CurrentConfig snapshot={latest} />
+            <CurrentConfig
+              snapshot={latest}
+              prev={snapshots.length > 1 ? snapshots[snapshots.length - 2] : undefined}
+            />
 
             {/* Timeline */}
             {snapshots.length > 0 && (
@@ -86,10 +89,18 @@ const EmptyPanel: FC = () => (
   </div>
 );
 
-const CurrentConfig: FC<{ snapshot: SolverSnapshot }> = ({ snapshot }) => {
+const CurrentConfig: FC<{ snapshot: SolverSnapshot; prev?: SolverSnapshot }> = ({
+  snapshot,
+  prev,
+}) => {
   const { params, result, evaluation, isRunning } = snapshot;
   const passed = evaluation?.meets_target === true;
   const failed = evaluation !== undefined && !evaluation.meets_target;
+
+  const gridChanged = prev !== undefined && params.grid_size !== prev.params.grid_size;
+  const omegaChanged = prev !== undefined && params.omega !== prev.params.omega;
+  const tolChanged = prev !== undefined && params.tol !== prev.params.tol;
+  const itersChanged = prev !== undefined && params.max_iters !== prev.params.max_iters;
 
   return (
     <div className="p-4 border-b border-border">
@@ -124,6 +135,8 @@ const CurrentConfig: FC<{ snapshot: SolverSnapshot }> = ({ snapshot }) => {
           label="Grid"
           value={`${params.grid_size}×${params.grid_size}`}
           sub={`${params.grid_size * params.grid_size} pts`}
+          changed={gridChanged}
+          delta={gridChanged ? (params.grid_size > prev!.params.grid_size ? "↑" : "↓") : undefined}
         />
         <ParamCard
           icon={GaugeIcon}
@@ -138,6 +151,8 @@ const CurrentConfig: FC<{ snapshot: SolverSnapshot }> = ({ snapshot }) => {
                   ? "standard"
                   : "aggressive"
           }
+          changed={omegaChanged}
+          delta={omegaChanged ? (params.omega > prev!.params.omega ? "↑" : "↓") : undefined}
         />
         <ParamCard
           icon={TargetIcon}
@@ -150,12 +165,16 @@ const CurrentConfig: FC<{ snapshot: SolverSnapshot }> = ({ snapshot }) => {
                 ? "production"
                 : "high-accuracy"
           }
+          changed={tolChanged}
+          delta={tolChanged ? (params.tol < prev!.params.tol ? "tighter" : "looser") : undefined}
         />
         <ParamCard
           icon={IterationCcwIcon}
           label="Max Iters"
           value={params.max_iters.toLocaleString()}
           sub="iteration cap"
+          changed={itersChanged}
+          delta={itersChanged ? (params.max_iters > prev!.params.max_iters ? "↑" : "↓") : undefined}
         />
       </div>
 
@@ -281,17 +300,38 @@ const ParamCard: FC<{
   label: string;
   value: string;
   sub?: string;
-}> = ({ icon: Icon, label, value, sub }) => (
-  <div className="rounded-lg bg-muted/50 px-3 py-2">
+  changed?: boolean;
+  delta?: string;
+}> = ({ icon: Icon, label, value, sub, changed, delta }) => (
+  <div
+    className={`rounded-lg px-3 py-2 transition-all duration-500 ${
+      changed
+        ? "bg-orange-500/10 border border-orange-500/40 shadow-[0_0_8px_rgba(249,115,22,0.15)]"
+        : "bg-muted/50"
+    }`}
+  >
     <div className="flex items-center gap-1.5 mb-1">
-      <Icon className="h-3 w-3 text-muted-foreground" />
-      <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">
+      <Icon className={`h-3 w-3 ${changed ? "text-orange-500" : "text-muted-foreground"}`} />
+      <span
+        className={`text-[9px] uppercase tracking-wider font-medium ${
+          changed ? "text-orange-500" : "text-muted-foreground"
+        }`}
+      >
         {label}
       </span>
+      {changed && delta && (
+        <span className="ml-auto text-[9px] font-bold text-orange-400 bg-orange-500/20 px-1.5 py-0.5 rounded-full animate-in fade-in">
+          {delta}
+        </span>
+      )}
     </div>
-    <div className="font-mono text-sm font-bold text-foreground">{value}</div>
+    <div className={`font-mono text-sm font-bold ${changed ? "text-orange-400" : "text-foreground"}`}>
+      {value}
+    </div>
     {sub && (
-      <div className="text-[9px] text-muted-foreground/60 mt-0.5">{sub}</div>
+      <div className={`text-[9px] mt-0.5 ${changed ? "text-orange-500/60" : "text-muted-foreground/60"}`}>
+        {sub}
+      </div>
     )}
   </div>
 );
