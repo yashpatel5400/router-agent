@@ -20,10 +20,14 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 
 
+BG_COLOR = "#0a0a0a"
+TEXT_COLOR = "#a1a1aa"
+ACCENT_COLOR = "#f97316"
+
 def save_heatmap(u, coords_x, coords_y, output_path, title="Temperature Distribution",
                  sources=None, cond_regions=None):
     """
-    Save a heatmap of the temperature field.
+    Save a heatmap of the temperature field with dark theme styling.
 
     Parameters
     ----------
@@ -40,38 +44,48 @@ def save_heatmap(u, coords_x, coords_y, output_path, title="Temperature Distribu
     cond_regions : list of dict, optional
         Conductivity regions to overlay as circles.
     """
-    fig, ax = plt.subplots(1, 1, figsize=(8, 7))
+    fig, ax = plt.subplots(1, 1, figsize=(7, 6))
+    fig.patch.set_facecolor(BG_COLOR)
+    ax.set_facecolor(BG_COLOR)
 
     extent = [coords_y[0], coords_y[-1], coords_x[0], coords_x[-1]]
-    im = ax.imshow(u, origin="lower", extent=extent, cmap="hot", aspect="equal")
+    im = ax.imshow(u, origin="lower", extent=extent, cmap="inferno", aspect="equal")
 
-    cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label("Temperature", fontsize=12)
+    cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cbar.set_label("Temperature", fontsize=11, color=TEXT_COLOR)
+    cbar.ax.yaxis.set_tick_params(color=TEXT_COLOR)
+    cbar.outline.set_edgecolor("#27272a")
+    plt.setp(cbar.ax.yaxis.get_ticklabels(), color=TEXT_COLOR, fontsize=9)
 
     if sources:
         for src in sources:
-            ax.plot(src["y"], src["x"], "c^", markersize=10, markeredgecolor="white",
-                    markeredgewidth=1.5, label=f"Source ({src['intensity']:.0f})")
+            ax.plot(src["y"], src["x"], "^", color="#22d3ee", markersize=9,
+                    markeredgecolor="white", markeredgewidth=1.2)
             if "radius" in src:
                 circle = Circle((src["y"], src["x"]), src["radius"],
-                                fill=False, edgecolor="cyan", linewidth=1.5, linestyle="--")
+                                fill=False, edgecolor="#22d3ee", linewidth=1.2,
+                                linestyle="--", alpha=0.7)
                 ax.add_patch(circle)
 
     if cond_regions:
         for reg in cond_regions:
             circle = Circle((reg["y"], reg["x"]), reg.get("radius", 0.1),
-                            fill=False, edgecolor="lime", linewidth=2, linestyle="-")
+                            fill=False, edgecolor="#4ade80", linewidth=1.8, linestyle="-")
             ax.add_patch(circle)
-            ax.annotate(f'k={reg["value"]}', (reg["y"], reg["x"]),
-                        color="lime", fontsize=9, ha="center", va="bottom",
+            ax.annotate(f'k={reg["value"]:.0f}', (reg["y"], reg["x"]),
+                        color="#4ade80", fontsize=8, ha="center", va="bottom",
                         fontweight="bold")
 
-    ax.set_xlabel("y", fontsize=12)
-    ax.set_ylabel("x", fontsize=12)
-    ax.set_title(title, fontsize=14, fontweight="bold")
+    ax.set_xlabel("y", fontsize=11, color=TEXT_COLOR)
+    ax.set_ylabel("x", fontsize=11, color=TEXT_COLOR)
+    ax.tick_params(colors=TEXT_COLOR, labelsize=9)
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#27272a")
+    ax.set_title(title, fontsize=13, fontweight="bold", color=TEXT_COLOR, pad=10)
 
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor=BG_COLOR,
+                edgecolor="none")
     plt.close(fig)
 
 
@@ -80,14 +94,20 @@ def save_convergence_plot(history, output_path, title="Solver Convergence"):
     iters = [h["iter"] for h in history]
     res = [h["residual_norm"] for h in history]
 
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.semilogy(iters, res, "b-", linewidth=1.5)
-    ax.set_xlabel("Iteration", fontsize=12)
-    ax.set_ylabel("Residual Norm", fontsize=12)
-    ax.set_title(title, fontsize=14, fontweight="bold")
-    ax.grid(True, alpha=0.3)
+    fig, ax = plt.subplots(figsize=(7, 4))
+    fig.patch.set_facecolor(BG_COLOR)
+    ax.set_facecolor(BG_COLOR)
+    ax.semilogy(iters, res, color=ACCENT_COLOR, linewidth=1.5)
+    ax.set_xlabel("Iteration", fontsize=11, color=TEXT_COLOR)
+    ax.set_ylabel("Residual Norm", fontsize=11, color=TEXT_COLOR)
+    ax.set_title(title, fontsize=13, fontweight="bold", color=TEXT_COLOR, pad=10)
+    ax.tick_params(colors=TEXT_COLOR, labelsize=9)
+    ax.grid(True, alpha=0.15, color="#3f3f46")
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#27272a")
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor=BG_COLOR,
+                edgecolor="none")
     plt.close(fig)
 
 

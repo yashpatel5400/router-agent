@@ -3,7 +3,7 @@ import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { execSync } from "child_process";
 import { writeFileSync, readFileSync, mkdirSync, existsSync, readdirSync, statSync } from "fs";
-import { join, basename } from "path";
+import { join } from "path";
 
 const REPO_ROOT = join(process.cwd(), "..");
 const TMP_DIR = join(REPO_ROOT, "outputs");
@@ -176,7 +176,6 @@ export async function POST(req: Request) {
           const designId = `design_${Date.now()}`;
           const designPath = join(TMP_DIR, `${designId}.json`);
           const resultPath = join(TMP_DIR, `${designId}_result.json`);
-          const heatmapPath = join(TMP_DIR, `${designId}_heatmap.png`);
 
           const design = {
             grid_size: args.grid_size,
@@ -195,7 +194,7 @@ export async function POST(req: Request) {
           writeFileSync(designPath, JSON.stringify(design, null, 2));
 
           try {
-            const cmd = `cd "${REPO_ROOT}" && python tools/solve_thermal.py --design "${designPath}" --output "${resultPath}" --heatmap "${heatmapPath}" 2>&1`;
+            const cmd = `cd "${REPO_ROOT}" && python tools/solve_thermal.py --design "${designPath}" --output "${resultPath}" 2>&1`;
             const output = execSync(cmd, {
               timeout: 120000,
               encoding: "utf-8",
@@ -210,7 +209,6 @@ export async function POST(req: Request) {
               final_residual: parsed.final_residual,
               elapsed_seconds: parsed.elapsed_seconds,
               result_path: resultPath,
-              heatmap_url: `/api/images/${basename(heatmapPath)}`,
               solver_output: output.trim(),
               solver_params: {
                 omega: args.omega,
@@ -218,6 +216,12 @@ export async function POST(req: Request) {
                 max_iters: args.max_iters,
                 grid_size: args.grid_size,
               },
+              temperature_field: parsed.temperature_field,
+              sources: args.sources,
+              conductivity_regions:
+                args.conductivity_type === "regions"
+                  ? args.conductivity_regions
+                  : [],
             };
           } catch (e: unknown) {
             return {

@@ -12,7 +12,7 @@ import {
   ShieldIcon,
   FlameIcon,
 } from "lucide-react";
-import { type FC, useRef, useEffect, FormEvent, useState, forwardRef, useImperativeHandle } from "react";
+import { type FC, useRef, useEffect, useCallback, FormEvent, useState, forwardRef, useImperativeHandle } from "react";
 import { HeatmapViewer } from "./HeatmapViewer";
 
 export type ChatHandle = {
@@ -39,6 +39,9 @@ export type SolverSnapshot = {
     target?: number;
   };
   heatmap_url?: string;
+  temperature_field?: number[][];
+  sources?: { x: number; y: number; intensity: number; radius: number }[];
+  conductivity_regions?: { x: number; y: number; radius: number; value: number }[];
   isRunning: boolean;
 };
 
@@ -86,6 +89,10 @@ type ChatProps = {
   snapshots?: SolverSnapshot[];
 };
 
+const MIN_VIEWER_H = 120;
+const MAX_VIEWER_H = 800;
+const DEFAULT_VIEWER_H = 350;
+
 export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   { onSolverUpdate, snapshots: externalSnapshots },
   ref,
@@ -93,6 +100,32 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
   const { messages, sendMessage, status, error, setMessages } = useChat();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
+  const [viewerHeight, setViewerHeight] = useState(DEFAULT_VIEWER_H);
+  const draggingRef = useRef(false);
+  const startYRef = useRef(0);
+  const startHRef = useRef(0);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    startYRef.current = e.clientY;
+    startHRef.current = viewerHeight;
+
+    const onMove = (ev: MouseEvent) => {
+      if (!draggingRef.current) return;
+      const delta = ev.clientY - startYRef.current;
+      setViewerHeight(Math.max(MIN_VIEWER_H, Math.min(MAX_VIEWER_H, startHRef.current + delta)));
+    };
+
+    const onUp = () => {
+      draggingRef.current = false;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [viewerHeight]);
 
   useImperativeHandle(ref, () => ({
     reset() {
@@ -107,7 +140,7 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
     if (!onSolverUpdate) return;
     const snapshots = extractSolverSnapshots(messages);
     const key = snapshots
-      .map((s) => `${s.iteration}:${s.isRunning}:${s.result?.iterations ?? ""}:${s.evaluation?.meets_target ?? ""}:${s.heatmap_url ?? ""}`)
+      .map((s) => `${s.iteration}:${s.isRunning}:${s.result?.iterations ?? ""}:${s.evaluation?.meets_target ?? ""}:${s.heatmap_url ?? ""}:${s.temperature_field ? "tf" : ""}`)
       .join("|");
     if (key !== prevSnapshotKeyRef.current) {
       prevSnapshotKeyRef.current = key;
@@ -137,9 +170,13 @@ export const Chat = forwardRef<ChatHandle, ChatProps>(function Chat(
 
   return (
     <div className="flex flex-1 min-w-0 flex-col">
-      {/* Fixed heatmap viewer at top */}
+      {/* Fixed heatmap viewer at top — resizable */}
       {messages.length > 0 && externalSnapshots && (
-        <HeatmapViewer snapshots={externalSnapshots} />
+        <HeatmapViewer
+          snapshots={externalSnapshots}
+          height={viewerHeight}
+          onResizeStart={handleResizeStart}
+        />
       )}
 
       <div
@@ -344,6 +381,9 @@ function extractSolverSnapshots(messages: UIMessage[]): SolverSnapshot[] {
         : undefined,
       evaluation,
       heatmap_url: outputObj?.heatmap_url as string | undefined,
+      temperature_field: outputObj?.temperature_field as number[][] | undefined,
+      sources: outputObj?.sources as SolverSnapshot["sources"] | undefined,
+      conductivity_regions: outputObj?.conductivity_regions as SolverSnapshot["conductivity_regions"] | undefined,
       isRunning: info.state !== "output-available" && info.state !== "output-error",
     });
   }
@@ -618,7 +658,7 @@ const SolveResult: FC<{ result: Record<string, unknown> }> = ({ result }) => (
         sub="interior pts"
       />
     </div>
-    {typeof result.heatmap_url === "string" && (
+    {(result.temperature_field != null || typeof result.heatmap_url === "string") && (
       <div className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
         Heatmap shown in viewer above
       </div>
