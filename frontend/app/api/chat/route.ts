@@ -74,8 +74,8 @@ CRITICAL WORKFLOW — you MUST follow this multi-step iterative process:
 
 **Step 5: Final push (if target not yet met)**
 - Go extreme on both design AND solver: conductivity 80-100, large overlapping spreaders
-- MANDATORY: Try grid_size=96 or 128 with omega=1.85, tol=1e-6, max_iters=20000
-- Explain the resolution increase: "Running a high-fidelity solve to verify results"
+- Stay at grid_size=64 (higher resolutions are too slow). Focus on design changes instead.
+- Use omega=1.85, tol=1e-6, max_iters=15000
 - Call solve_thermal and evaluate_design
 
 IMPORTANT: You MUST change at least one solver parameter (grid_size, omega, tol, or max_iters) between steps 2→3, 3→4, and 4→5. The user can see your parameter choices in a sidebar panel. Keeping the same parameters every time looks lazy. Show intelligent adaptation.
@@ -100,10 +100,10 @@ KEY PRINCIPLES:
 - NEVER give up before trying at least 5 design iterations
 
 SOLVER PARAMETER REFERENCE:
-- **grid_size**: 32 (fast, ~0.2s) → 64 (accurate, ~1s) → 128 (high-fidelity, ~5s)
-- **omega**: 1.5 (safe default) → 1.7 (good for 64x64) → 1.8-1.85 (aggressive, faster convergence on large grids)
+- **grid_size**: 32 (fast, ~0.2s) → 64 (accurate, ~1-2s). Do NOT exceed 64 — larger grids are too slow for interactive use.
+- **omega**: 1.5 (safe default) → 1.7 (good for 64x64) → 1.8-1.85 (aggressive, faster convergence)
 - **tol**: 1e-4 (exploratory) → 1e-6 (production) → 1e-8 (verification)
-- **max_iters**: 5000 (small grids) → 10000-15000 (64x64) → 20000+ (128x128)
+- **max_iters**: 5000 (small grids) → 10000-15000 (64x64)
 
 You MUST mention your parameter choices when they change. Say things like:
 - "Switching to a 64x64 grid for better spatial resolution"
@@ -257,6 +257,11 @@ export async function POST(req: Request) {
               error: e instanceof Error ? e.message : String(e),
             };
           }
+        },
+        toModelOutput({ output }) {
+          if (!output || typeof output !== "object") return output;
+          const { temperature_field, sources, conductivity_regions, solver_output, ...modelData } = output as Record<string, unknown>;
+          return modelData;
         },
       }),
       evaluate_design: tool({
