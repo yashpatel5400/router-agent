@@ -4,91 +4,145 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useComposerRuntime,
 } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
-import { SendHorizontalIcon } from "lucide-react";
+import {
+  SendHorizontalIcon,
+  ThermometerIcon,
+  CpuIcon,
+  ZapIcon,
+  LayersIcon,
+  ShieldIcon,
+  FlameIcon,
+} from "lucide-react";
 import { FC } from "react";
+
+const EXAMPLES = [
+  {
+    icon: CpuIcon,
+    label: "Chip cooling challenge",
+    prompt:
+      "I have a high-power chip at (0.5, 0.5) with intensity 2000 and radius 0.08. The chip runs extremely hot. Target: keep peak temperature below 0.5. Suggest heat spreader placements to meet this target.",
+  },
+  {
+    icon: FlameIcon,
+    label: "Multi-source thermal management",
+    prompt:
+      "3 heat sources in a line: (0.3, 0.5) intensity 800, (0.5, 0.5) intensity 1200, (0.7, 0.5) intensity 800, all radius 0.06. Target: peak temp below 0.8. Design a cooling layout.",
+  },
+  {
+    icon: ShieldIcon,
+    label: "Edge-mounted power devices",
+    prompt:
+      "4 power devices near the edges: (0.2, 0.2), (0.2, 0.8), (0.8, 0.2), (0.8, 0.8), each intensity 600 radius 0.05. Target: peak temp below 0.4. They're close to the cool boundaries — can we exploit that?",
+  },
+  {
+    icon: ZapIcon,
+    label: "Dense power grid",
+    prompt:
+      "6 power devices in a 2x3 grid: (0.35,0.3), (0.35,0.5), (0.35,0.7), (0.65,0.3), (0.65,0.5), (0.65,0.7), each intensity 1000, radius 0.04. They're tightly packed and interact thermally. Target: peak temp below 0.6.",
+  },
+  {
+    icon: ThermometerIcon,
+    label: "Asymmetric heat load",
+    prompt:
+      "Two sources with very different intensities: (0.3, 0.5) at 2000 and (0.7, 0.5) at 200. Radius 0.07 each. Target: peak temp below 0.8. The design needs to handle the asymmetry.",
+  },
+  {
+    icon: LayersIcon,
+    label: "Central hot spot",
+    prompt:
+      "Single intense source at dead center (0.5, 0.5), intensity 3000, radius 0.1. Target: peak temp below 0.15. This is extremely challenging — maximum heat spreader coverage needed.",
+  },
+];
 
 export const Thread: FC = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col">
-      <ThreadPrimitive.Viewport className="flex flex-1 flex-col items-center overflow-y-auto scroll-smooth px-4 pt-8">
-        <ThreadPrimitive.Empty>
-          <div className="flex flex-col items-center gap-4 text-center max-w-md mx-auto py-16">
-            <div className="rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 p-4 shadow-lg">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="white"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 2v10" />
-                <path d="M18.4 6.6a9 9 0 1 1-12.77.04" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-foreground">
-              PDE Thermal Design Optimizer
-            </h2>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              Describe a thermal design problem and I&apos;ll iteratively
-              optimize it using physics simulation. I can place heat sources,
-              tune conductivity, simulate temperature fields, and find designs
-              that meet your constraints.
-            </p>
-            <div className="grid gap-2 text-xs text-muted-foreground w-full">
-              <button
-                className="rounded-lg border border-border bg-card p-3 text-left hover:bg-accent transition-colors cursor-pointer"
-                onClick={() => {
-                  const composer = document.querySelector("textarea");
-                  if (composer) {
-                    composer.value =
-                      "I have two chips at (0.3, 0.3) and (0.7, 0.7) each generating heat with intensity 500. Keep peak temperature below 1.0.";
-                    composer.dispatchEvent(
-                      new Event("input", { bubbles: true })
-                    );
-                    composer.focus();
-                  }
-                }}
-              >
-                &quot;Two chips at (0.3, 0.3) and (0.7, 0.7) with intensity 500.
-                Keep peak temp below 1.0&quot;
-              </button>
-              <button
-                className="rounded-lg border border-border bg-card p-3 text-left hover:bg-accent transition-colors cursor-pointer"
-                onClick={() => {
-                  const composer = document.querySelector("textarea");
-                  if (composer) {
-                    composer.value =
-                      "Design a heat sink layout with 3 sources along the center line. Minimize the maximum temperature.";
-                    composer.dispatchEvent(
-                      new Event("input", { bubbles: true })
-                    );
-                    composer.focus();
-                  }
-                }}
-              >
-                &quot;3 sources along center line — minimize peak
-                temperature&quot;
-              </button>
-            </div>
-          </div>
-        </ThreadPrimitive.Empty>
+      <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto scroll-smooth px-6 pt-4">
+        <div className="mx-auto w-full max-w-2xl">
+          <ThreadPrimitive.Empty>
+            <EmptyState />
+          </ThreadPrimitive.Empty>
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,
-            AssistantMessage,
-          }}
-        />
+          <ThreadPrimitive.Messages
+            components={{
+              UserMessage,
+              AssistantMessage,
+            }}
+          />
+        </div>
       </ThreadPrimitive.Viewport>
 
       <Composer />
     </ThreadPrimitive.Root>
+  );
+};
+
+const EmptyState: FC = () => {
+  const composer = useComposerRuntime();
+
+  return (
+    <div className="flex flex-col items-center gap-6 text-center max-w-xl mx-auto py-12">
+      <div className="rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 p-5 shadow-xl shadow-orange-500/20">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="40"
+          height="40"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="white"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 2v10" />
+          <path d="M18.4 6.6a9 9 0 1 1-12.77.04" />
+        </svg>
+      </div>
+      <div className="space-y-2">
+        <h2 className="text-2xl font-bold text-foreground">
+          Thermal Design Agent
+        </h2>
+        <p className="text-muted-foreground text-sm leading-relaxed max-w-md mx-auto">
+          Describe a thermal problem and the agent will autonomously iterate on
+          the design — solving PDEs, evaluating constraints, and optimizing
+          layouts until your targets are met.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 w-full text-left">
+        {EXAMPLES.map((ex) => (
+          <button
+            key={ex.label}
+            className="group rounded-lg border border-border bg-card/50 p-3 hover:bg-accent hover:border-accent-foreground/20 transition-all cursor-pointer text-left"
+            onClick={() => {
+              composer.setText(ex.prompt);
+              composer.send();
+            }}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <ex.icon className="h-3.5 w-3.5 text-orange-500" />
+              <span className="text-xs font-semibold text-foreground">
+                {ex.label}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">
+              {ex.prompt}
+            </p>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-4 text-[10px] text-muted-foreground/60 uppercase tracking-widest">
+        <span>2D Poisson PDE</span>
+        <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+        <span>SOR Solver</span>
+        <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+        <span>Autonomous Iteration</span>
+      </div>
+    </div>
   );
 };
 
@@ -97,24 +151,21 @@ const Composer: FC = () => {
     <ComposerPrimitive.Root className="mx-auto flex w-full max-w-2xl items-end gap-2 rounded-t-xl border border-border bg-card p-3 shadow-sm">
       <ComposerPrimitive.Input
         autoFocus
-        placeholder="Describe your thermal design problem..."
+        placeholder="Describe a thermal design problem..."
         rows={1}
         className="flex-1 resize-none border-none bg-transparent p-2 text-sm outline-none placeholder:text-muted-foreground"
       />
-      <button
-        type="submit"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-black transition-opacity hover:opacity-80"
-      >
+      <ComposerPrimitive.Send className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground text-background transition-opacity hover:opacity-80 disabled:opacity-30">
         <SendHorizontalIcon className="size-4" />
-      </button>
+      </ComposerPrimitive.Send>
     </ComposerPrimitive.Root>
   );
 };
 
 const UserMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="mb-4 flex w-full max-w-2xl flex-col items-end gap-1">
-      <div className="rounded-2xl rounded-br-md bg-foreground px-4 py-2.5 text-sm text-background">
+    <MessagePrimitive.Root className="mb-4 flex w-full flex-col items-end gap-1">
+      <div className="rounded-2xl rounded-br-md bg-foreground px-4 py-2.5 text-sm text-background max-w-[80%]">
         <MessagePrimitive.Content />
       </div>
     </MessagePrimitive.Root>
@@ -123,242 +174,48 @@ const UserMessage: FC = () => {
 
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="mb-4 flex w-full max-w-2xl flex-col items-start gap-1">
-      <div className="rounded-2xl rounded-bl-md bg-card border border-border px-4 py-2.5 text-sm max-w-full overflow-x-auto">
-        <MessagePrimitive.Content
-          components={{
-            Text: MarkdownTextComponent,
-            tools: {
-              Fallback: ToolFallbackComponent,
-            },
-          }}
-        />
-      </div>
+    <MessagePrimitive.Root className="mb-4 flex w-full flex-col items-start gap-2">
+      <MessagePrimitive.Content
+        components={{
+          Text: MarkdownText,
+          tools: {
+            Fallback: ToolFallback,
+          },
+        }}
+      />
     </MessagePrimitive.Root>
   );
 };
 
-const MarkdownTextComponent: FC<{ text: string }> = () => {
+const MarkdownText: FC<{ text: string }> = () => {
   return (
-    <MarkdownTextPrimitive className="prose prose-sm dark:prose-invert max-w-none" />
+    <div className="rounded-2xl rounded-bl-md bg-card border border-border px-4 py-2.5 text-sm max-w-full overflow-x-auto">
+      <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+        <MarkdownTextPrimitive />
+      </div>
+    </div>
   );
 };
 
-const ToolFallbackComponent: FC<{
+const ToolFallback: FC<{
   toolName: string;
-  toolCallId: string;
-  argsText: string;
   args: Record<string, unknown>;
   result?: unknown;
-  addResult: (result: unknown) => void;
-  resume: (payload: unknown) => void;
   status: { type: string };
-}> = ({ toolName, args, result, status }) => {
+}> = ({ toolName, status }) => {
+  const isRunning = status.type === "running" || status.type === "requires-action";
   return (
-    <ToolCallDisplay
-      toolName={toolName}
-      args={args}
-      result={result}
-      status={status.type}
-    />
-  );
-};
-
-const ToolCallDisplay: FC<{
-  toolName: string;
-  args: Record<string, unknown>;
-  result?: unknown;
-  status?: string;
-}> = ({ toolName, args, result, status }) => {
-  const toolLabels: Record<string, [string, string]> = {
-    solve_thermal: ["Solving thermal problem...", "Solve complete"],
-    evaluate_design: ["Evaluating design...", "Evaluation complete"],
-    visualize: ["Generating heatmap...", "Visualization ready"],
-  };
-
-  const [runningLabel, doneLabel] = toolLabels[toolName] || [
-    `Running ${toolName}...`,
-    toolName,
-  ];
-  const hasResult = result !== undefined && result !== null;
-  const isRunning = status === "running" || status === "streaming";
-  const label = hasResult ? doneLabel : runningLabel;
-
-  let resultObj: Record<string, unknown> | undefined;
-  try {
-    resultObj =
-      typeof result === "string"
-        ? JSON.parse(result)
-        : (result as Record<string, unknown> | undefined);
-  } catch {
-    resultObj = undefined;
-  }
-
-  return (
-    <div className="my-2 rounded-lg border border-border bg-muted/30 overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/50">
+    <div className="w-full rounded-xl border border-border bg-card overflow-hidden shadow-sm my-1">
+      <div className="flex items-center gap-2.5 px-4 py-2.5 bg-muted/40">
         <div
           className={`h-2 w-2 rounded-full ${
-            hasResult
-              ? resultObj?.error
-                ? "bg-red-500"
-                : "bg-green-500"
-              : "bg-yellow-500 animate-pulse"
+            isRunning ? "bg-yellow-500 animate-pulse" : "bg-green-500"
           }`}
         />
-        <span className="text-xs font-medium">{label}</span>
-        {isRunning && !hasResult && (
-          <svg
-            className="ml-auto h-3 w-3 animate-spin text-muted-foreground"
-            viewBox="0 0 24 24"
-            fill="none"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
-          </svg>
-        )}
+        <span className="text-xs font-semibold tracking-wide">
+          {isRunning ? `Running ${toolName}...` : toolName}
+        </span>
       </div>
-
-      {isRunning && !hasResult && (
-        <div className="px-3 py-2 text-xs text-muted-foreground">
-          {toolName === "solve_thermal" && (
-            <span>Running SOR solver on the PDE grid...</span>
-          )}
-          {toolName === "evaluate_design" && (
-            <span>Computing temperature metrics and checking constraints...</span>
-          )}
-          {toolName === "visualize" && (
-            <span>Rendering heatmap from temperature field...</span>
-          )}
-        </div>
-      )}
-
-      {hasResult && resultObj && (
-        <div className="p-3 space-y-2">
-          {resultObj.error ? (
-            <div className="text-xs text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-1.5 rounded">
-              Error: {String(resultObj.error)}
-            </div>
-          ) : (
-            <>
-              {toolName === "solve_thermal" && (
-                <SolveResult result={resultObj} />
-              )}
-              {toolName === "evaluate_design" && (
-                <EvaluateResult result={resultObj} />
-              )}
-              {toolName === "visualize" && (
-                <VisualizeResult result={resultObj} />
-              )}
-              {!["solve_thermal", "evaluate_design", "visualize"].includes(
-                toolName
-              ) && (
-                <pre className="text-xs overflow-x-auto whitespace-pre-wrap">
-                  {JSON.stringify(resultObj, null, 2)}
-                </pre>
-              )}
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 };
-
-const SolveResult: FC<{ result: Record<string, unknown> }> = ({ result }) => (
-  <div className="space-y-3">
-    <div className="grid grid-cols-3 gap-2 text-xs">
-      <Stat label="Iterations" value={String(result.iterations ?? "—")} />
-      <Stat label="Time" value={`${result.elapsed_seconds ?? "—"}s`} />
-      <Stat
-        label="Grid"
-        value={`${result.grid_size ?? "—"}×${result.grid_size ?? "—"}`}
-      />
-    </div>
-    {typeof result.heatmap_url === "string" && (
-      <div className="rounded-md overflow-hidden border border-border">
-        <img
-          src={result.heatmap_url}
-          alt="Temperature heatmap"
-          className="w-full"
-        />
-      </div>
-    )}
-  </div>
-);
-
-const EvaluateResult: FC<{ result: Record<string, unknown> }> = ({
-  result,
-}) => {
-  const meets = result.meets_target;
-  return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-3 gap-2 text-xs">
-        <Stat
-          label="Max Temp"
-          value={String(result.max_temperature ?? "—")}
-          highlight={meets === false}
-        />
-        <Stat label="Mean Temp" value={String(result.mean_temperature ?? "—")} />
-        <Stat label="Compliance" value={String(result.thermal_compliance ?? "—")} />
-      </div>
-      {meets !== undefined && (
-        <div
-          className={`text-xs font-medium px-2 py-1 rounded ${
-            meets
-              ? "bg-green-500/10 text-green-700 dark:text-green-400"
-              : "bg-red-500/10 text-red-700 dark:text-red-400"
-          }`}
-        >
-          {meets
-            ? `Target met (margin: ${result.margin})`
-            : `Target NOT met (over by ${Math.abs(Number(result.margin ?? 0)).toFixed(4)})`}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const VisualizeResult: FC<{ result: Record<string, unknown> }> = ({
-  result,
-}) => {
-  const url = result.heatmap_url as string | undefined;
-  if (url) {
-    return (
-      <div className="rounded-md overflow-hidden border border-border">
-        <img src={url} alt="Temperature heatmap" className="w-full" />
-      </div>
-    );
-  }
-  return (
-    <div className="text-xs text-muted-foreground">Visualization generated</div>
-  );
-};
-
-const Stat: FC<{ label: string; value: string; highlight?: boolean }> = ({
-  label,
-  value,
-  highlight,
-}) => (
-  <div
-    className={`rounded-md px-2 py-1.5 ${highlight ? "bg-red-500/10" : "bg-muted/50"}`}
-  >
-    <div className="text-muted-foreground text-[10px] uppercase tracking-wider">
-      {label}
-    </div>
-    <div className={`font-mono font-semibold ${highlight ? "text-red-600 dark:text-red-400" : ""}`}>
-      {value}
-    </div>
-  </div>
-);

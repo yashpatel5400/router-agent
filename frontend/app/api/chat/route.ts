@@ -1,9 +1,19 @@
 import { streamText, tool, stepCountIs, convertToModelMessages } from "ai";
 import { openai } from "@ai-sdk/openai";
+import { Ratelimit } from "@unkey/ratelimit";
 import { z } from "zod";
 import { execSync } from "child_process";
 import { writeFileSync, readFileSync, mkdirSync, existsSync, readdirSync, statSync } from "fs";
 import { join } from "path";
+
+const ratelimit = process.env.UNKEY_ROOT_KEY
+  ? new Ratelimit({
+      rootKey: process.env.UNKEY_ROOT_KEY,
+      namespace: "pde-optimizer",
+      limit: 20,
+      duration: "60s",
+    })
+  : null;
 
 const REPO_ROOT = join(process.cwd(), "..");
 const TMP_DIR = join(REPO_ROOT, "outputs");
@@ -105,6 +115,25 @@ Source positions must be in (0,1). Intensity controls heat generation rate. Radi
 Conductivity can be uniform or have high-conductivity regions (heat spreaders / heat sinks) to create thermal pathways that draw heat toward the cool boundaries.`;
 
 export async function POST(req: Request) {
+  if (ratelimit) {
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
+    const { success, remaining, reset } = await ratelimit.limit(ip);
+    if (!success) {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "X-RateLimit-Remaining": remaining.toString(),
+            "X-RateLimit-Reset": reset.toString(),
+          },
+        },
+      );
+    }
+  }
+
   const { messages: uiMessages } = await req.json();
   const modelMessages = await convertToModelMessages(uiMessages);
 

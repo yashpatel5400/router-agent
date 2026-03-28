@@ -46,9 +46,6 @@ export default function Home() {
         >
           PDE Thermal Design Optimizer
         </button>
-        <span className="text-xs text-muted-foreground ml-auto">
-          Powered by 2D Poisson Solver + SOR
-        </span>
       </header>
       <div className="flex flex-1 min-h-0">
         <Chat ref={chatRef} onSolverUpdate={handleSolverUpdate} snapshots={snapshots} />
